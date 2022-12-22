@@ -1,6 +1,6 @@
 #include <iostream>
 #include <string>
-#include "utility.h"
+#include "cpputility.h"
 #include "PassClass.h"
 
 void launch()
@@ -15,7 +15,7 @@ void launch()
         std::cin >> user_input;
         switch (stoi_with_check(user_input)) {
         case 1:
-
+            pass.add_pass();
             break;
         case 2:
             break;
@@ -32,5 +32,25 @@ void launch()
 
 int main()
 {
-    launch();
+    const char* text = "asidlhgfyiuyguaysdgbagasdcvetwee";
+    const char* key = "abcdefghijklmnop";
+    unsigned char* k = (unsigned char*)key;
+    unsigned char* txt = (unsigned char*)text;
+    unsigned char* cipher = NULL;
+    unsigned char* dec = NULL;
+
+    int n_blocks = aes_encrypt(txt, 32, k, AES_128, &cipher);
+    int len = aes_decrypt(cipher, n_blocks, k, AES_128, &dec);
+    printf("plain text: ");
+    printCharArr(txt, 32, false);
+    printf("Key: ");
+    printCharArr(k, 16, false);
+    printf("Cipher: ");
+    printCharArr(cipher, n_blocks*BLOCK_LEN, false);
+    printf("Decrypted: ");
+    printCharArr(dec, len, false);
+    
+    free(cipher);
+    free(dec);
+    //launch();
 }
