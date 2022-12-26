@@ -36,3 +36,10 @@ void right_rotate(unsigned char* arr, int d, int n)
     // right rotation of matrix is complement of left rotation
     left_rotate(arr, n - d, n); 
 }
+
+
+void random_char_arr(unsigned char* arr, int n)
+{
+    return;
+
+}

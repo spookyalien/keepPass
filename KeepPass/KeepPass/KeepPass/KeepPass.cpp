@@ -18,8 +18,10 @@ void launch()
             pass.add_pass();
             break;
         case 2:
+            pass.remove_pass();
             break;
         case 3:
+            pass.print_pass();
             break;
         default:
             std::cout << "[!] Invalid input.\n";
@@ -32,25 +34,57 @@ void launch()
 
 int main()
 {
-    const char* text = "asidlhgfyiuyguaysdgbagasdcvetwee";
-    const char* key = "abcdefghijklmnop";
-    unsigned char* k = (unsigned char*)key;
-    unsigned char* txt = (unsigned char*)text;
+    const char* txt = "asidlhgfyiuyguaysdgdcvetwee";
+    const char* k = "abcdefghijklmnop";
+    const char* ivv = "zyxwvutsrqabcdef";
+    //const char* names[3] = { "AES-ECB", "AES-CBC", "AES-CTR" };
+    unsigned char* key = (unsigned char*)k;
+    unsigned char* text = (unsigned char*)txt;
+    unsigned char* iv = (unsigned char*)ivv;
     unsigned char* cipher = NULL;
     unsigned char* dec = NULL;
 
-    int n_blocks = aes_encrypt(txt, 32, k, AES_128, &cipher);
-    int len = aes_decrypt(cipher, n_blocks, k, AES_128, &dec);
+    int encr_len = aes_encrypt(text, 27, key, AES_256, AES_CTR, iv, &cipher);
+    int decr_len = aes_decrypt(cipher, encr_len, key, AES_256, AES_CTR, iv, &dec);
+
+    printf("==============AES_CTR\n");
     printf("plain text: ");
-    printCharArr(txt, 32, false);
+    printCharArr(text, 27, false);
     printf("Key: ");
-    printCharArr(k, 16, false);
+    printCharArr(key, 16, false);
     printf("Cipher: ");
-    printCharArr(cipher, n_blocks*BLOCK_LEN, false);
+    printCharArr(cipher, encr_len, false);
     printf("Decrypted: ");
-    printCharArr(dec, len, false);
-    
+    printCharArr(dec, decr_len, false);
+
+    encr_len = aes_encrypt(text, 27, key, AES_256, AES_ECB, NULL, &cipher);
+    decr_len = aes_decrypt(cipher, encr_len, key, AES_256, AES_ECB, NULL, &dec);
+
+    printf("\n==============AES_ECB\n");
+    printf("plain text: ");
+    printCharArr(text, 27, false);
+    printf("Key: ");
+    printCharArr(key, 16, false);
+    printf("Cipher: ");
+    printCharArr(cipher, encr_len, false);
+    printf("Decrypted: ");
+    printCharArr(dec, decr_len, false);
+
+    encr_len = aes_encrypt(text, 27, key, AES_256, AES_CBC, iv, &cipher);
+    decr_len = aes_decrypt(cipher, encr_len, key, AES_256, AES_CBC, iv, &dec);
+
+    printf("\n==============AES_CBC\n");
+    printf("plain text: ");
+    printCharArr(text, 27, false);
+    printf("Key: ");
+    printCharArr(key, 16, false);
+    printf("Cipher: ");
+    printCharArr(cipher, encr_len, false);
+    printf("Decrypted: ");
+    printCharArr(dec, decr_len, false);
+
     free(cipher);
     free(dec);
+
     //launch();
 }
