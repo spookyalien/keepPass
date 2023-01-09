@@ -22,7 +22,7 @@ unsigned int sha_k[4] = {
 	0xCA62C1D6
 };
 
-int SHA_reset(SHA1_CTX* ctx)
+int SHA1_reset(SHA1_CTX* ctx)
 {
 	if (!ctx)
 		return SHA1_NULL;
@@ -37,7 +37,7 @@ int SHA_reset(SHA1_CTX* ctx)
 	return SHA1_SUCCESS;
 }
 
-int SHA_input(SHA1_CTX* ctx, const uint8_t* octets, unsigned int byte_count)
+int SHA1_input(SHA1_CTX* ctx, const uint8_t* octets, unsigned int byte_count)
 {
 	if (!byte_count)
 		return SHA1_SUCCESS;
@@ -56,8 +56,16 @@ int SHA_input(SHA1_CTX* ctx, const uint8_t* octets, unsigned int byte_count)
 	while (byte_count-- && !ctx->corrupted) {
 		ctx->msg_block[ctx->msg_block_index++] = (*octets & 0xFF);
 
-		if (!SHA1_add_length(ctx, 8) && (ctx->msg_block_index == SHA1_MSG_BLOCK_SIZE)) 
+		ctx->len_low += 8;
+		if (ctx->len_low == 0) {
+			ctx->len_high++;
+			if (ctx->len_high == 0) 
+				ctx->corrupted = 1;
+		}
+
+		if (ctx->msg_block_index == SHA1_MSG_BLOCK_SIZE) {
 			SHA1_proc_msg(ctx);
+		}
 
 		octets++;
 	}
@@ -65,7 +73,7 @@ int SHA_input(SHA1_CTX* ctx, const uint8_t* octets, unsigned int byte_count)
 	return SHA1_SUCCESS;
 }
 
-int SHA_final(SHA1_CTX* ctx, const uint8_t octet, unsigned int bit_count)
+int SHA1_final(SHA1_CTX* ctx, const uint8_t octet, unsigned int bit_count)
 {
 	uint8_t masks[8] = {
 		/* 0 0b00000000 */ 0x00, /* 1 0b10000000 */ 0x80,
@@ -100,7 +108,7 @@ int SHA_final(SHA1_CTX* ctx, const uint8_t octet, unsigned int bit_count)
 	return SHA1_SUCCESS;
 }
 
-int SHA_result(SHA1_CTX* ctx, uint8_t digest[SHA1_HASH_SIZE])
+int SHA1_result(SHA1_CTX* ctx, uint8_t digest[SHA1_HASH_SIZE])
 {
 	if (!ctx || !digest)
 		return SHA1_NULL;
@@ -112,7 +120,7 @@ int SHA_result(SHA1_CTX* ctx, uint8_t digest[SHA1_HASH_SIZE])
 		SHA1_finalize(ctx, 0x80);
 
 	for (int i = 0; i < SHA1_HASH_SIZE; i++) {
-		digest[i] = (uint8_t)(sha_h[i >> 2] >> 8 * (3 - (i & 0x03) ));
+		digest[i] = ctx->h[i>>2] >> 8 * ( 3 - ( i & 0x03));
 	}
 
 	return SHA1_SUCCESS;
@@ -139,13 +147,17 @@ void SHA1_pad_msg(SHA1_CTX* ctx, uint8_t pad_byte)
 			ctx->msg_block[ctx->msg_block_index++] = 0;
 		}
 		SHA1_proc_msg(ctx);
+
+		while (ctx->msg_block_index < 56) {
+			ctx->msg_block[ctx->msg_block_index++] = 0;
+		}
 	}
 	else {
 		ctx->msg_block[ctx->msg_block_index++] = pad_byte;
-	}
 
-	while (ctx->msg_block_index < (SHA1_MSG_BLOCK_SIZE - 8)) {
-		ctx->msg_block[ctx->msg_block_index++] = 0;
+		while (ctx->msg_block_index < (SHA1_MSG_BLOCK_SIZE - 8)) {
+			ctx->msg_block[ctx->msg_block_index++] = 0;
+		}
 	}
 
 	ctx->msg_block[56] = (uint8_t)(ctx->len_high >> 24);
@@ -168,10 +180,10 @@ void SHA1_proc_msg(SHA1_CTX* ctx)
 	uint32_t A, B, C, D, E;
 
 	for (t = 0; t < 16; t++) {
-		w[t] = ((uint32_t)ctx->msg_block[t * 4]) << 24;
-		w[t] |= ((uint32_t)ctx->msg_block[t * 4 + 1]) << 16;
-		w[t] |= ((uint32_t)ctx->msg_block[t * 4 + 2]) << 8;
-		w[t] |= ((uint32_t)ctx->msg_block[t * 4 + 3]);
+		w[t] = ctx->msg_block[t * 4] << 24;
+		w[t] |= ctx->msg_block[t * 4 + 1] << 16;
+		w[t] |= ctx->msg_block[t * 4 + 2] << 8;
+		w[t] |= ctx->msg_block[t * 4 + 3];
 	}
 
 	for (t = 16; t < 80; t++) {
@@ -185,7 +197,7 @@ void SHA1_proc_msg(SHA1_CTX* ctx)
 	E = ctx->h[4];
 
 	for (t = 0; t < 20; t++) {
-		temp = SHA1_ROTL(5, A) + SHA_ch(B, C, D) + E + w[t] + sha_k[0];
+		temp = SHA1_ROTL(5, A) + ((B & C) | ((~B) & D)) + E + w[t] + sha_k[0];
 		E = D;
 		D = C;
 		C = SHA1_ROTL(30, B);
@@ -194,7 +206,7 @@ void SHA1_proc_msg(SHA1_CTX* ctx)
 	}
 
 	for (t = 20; t < 40; t++) {
-		temp = SHA1_ROTL(5, A) + SHA_parity(B, C, D) + E + w[t] + sha_k[1];
+		temp = SHA1_ROTL(5, A) + (B ^ C ^ D) + E + w[t] + sha_k[1];
 		E = D;
 		D = C;
 		C = SHA1_ROTL(30, B);
@@ -203,7 +215,7 @@ void SHA1_proc_msg(SHA1_CTX* ctx)
 	}
 
 	for (t = 40; t < 60; t++) {
-		temp = SHA1_ROTL(5, A) + SHA_maj(B, C, D) + E + w[t] + sha_k[2];
+		temp = SHA1_ROTL(5, A) + ((B & C) | (B & D) | (C & D)) + E + w[t] + sha_k[2];
 		E = D;
 		D = C;
 		C = SHA1_ROTL(30, B);
@@ -212,7 +224,7 @@ void SHA1_proc_msg(SHA1_CTX* ctx)
 	}
 
 	for (t = 60; t < 80; t++) {
-		temp = SHA1_ROTL(5, A) + SHA_parity(B, C, D) + E + w[t] + sha_k[3];
+		temp = SHA1_ROTL(5, A) + (B ^ C ^ D) + E + w[t] + sha_k[3];
 		E = D;
 		D = C;
 		C = SHA1_ROTL(30, B);

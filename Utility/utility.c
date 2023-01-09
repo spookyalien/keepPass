@@ -1,7 +1,7 @@
 #include "utility.h"
 
 
-void printCharArr(unsigned char* arr, int len, bool asChar)
+void printCharArr(unsigned char* arr, int len)
 {
     char hex[16] = "0123456789ABCDEF";
 
@@ -37,9 +37,3 @@ void right_rotate(unsigned char* arr, int d, int n)
     left_rotate(arr, n - d, n); 
 }
 
-
-void random_char_arr(unsigned char* arr, int n)
-{
-    return;
-
-}
