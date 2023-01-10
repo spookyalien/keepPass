@@ -1,14 +1,18 @@
 #include "HMAC.h"
-#include "../Utility/utility.h"
+#include "../Utility/cpputility.h"
 
+/*
+	@param key: chosen password
+	@param msg: message to be encrypted
 
-int HMAC(unsigned char* key, unsigned char* msg)
+	returns: SHA1_SUCCESS (0) if successful, and -1 otherwise
+*/
+int HMAC(unsigned char* key, unsigned char* msg, unsigned char msg_digest_final[SHA1_HASH_SIZE])
 {
 	SHA1_CTX ctx;
-	uint8_t msg_digest[SHA1_HASH_SIZE];
-	uint8_t msg_digest_final[SHA1_HASH_SIZE];
-	unsigned char i_pad[SHA1_MSG_BLOCK_SIZE];
-	unsigned char o_pad[SHA1_MSG_BLOCK_SIZE];
+	unsigned char msg_digest[SHA1_HASH_SIZE] = {};
+	unsigned char i_pad[SHA1_MSG_BLOCK_SIZE] = {};
+	unsigned char o_pad[SHA1_MSG_BLOCK_SIZE] = {};
 	int i = 0;
 	int key_len = strlen((char*)key);
 
@@ -32,16 +36,16 @@ int HMAC(unsigned char* key, unsigned char* msg)
 	SHA1_reset(&ctx);
 	SHA1_input(&ctx, o_pad, SHA1_MSG_BLOCK_SIZE);
 	SHA1_input(&ctx, msg_digest, SHA1_HASH_SIZE);
-	SHA1_result(&ctx, msg_digest_final);
-
-	for (int i = 0; i < 20; ++i)
-	{
-		printf("%02X", msg_digest_final[i]);
-	}
-	printf("\n");
-	return 1;
+	
+	return SHA1_result(&ctx, msg_digest_final);
 }
 
+/*
+	@param key: chosen password
+	@param key_len: length of key to be passed which will be changed if key size is too large
+
+	returns: key to be used for HMAC
+*/
 unsigned char* compute_block_size_key(unsigned char* key, int* key_len)
 {
 	uint8_t tmp_msg_digest[SHA1_HASH_SIZE];

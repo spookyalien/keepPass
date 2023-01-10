@@ -1,14 +1,7 @@
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-#include "AES/aes.h"
-#include "Utility/utility.h"
+#ifndef PASSCLASS_H
+#define PASSCLASS_H
 
-#ifdef __cplusplus
-}
-
-
+#include "Utility/cpputility.h"
 
 class KeepPass
 {

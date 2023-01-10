@@ -1,7 +1,6 @@
 #ifndef SHA1_H
 #define SHA1_H
 
-#include <iostream>
 #include <string>
 #include <stdint.h>
 
@@ -22,7 +21,7 @@ typedef struct SHA1_CTX {
 	uint32_t len_high;
 
 	int_least16_t msg_block_index;
-	uint8_t msg_block[SHA1_MSG_BLOCK_SIZE];
+	unsigned char msg_block[SHA1_MSG_BLOCK_SIZE];
 	uint32_t h[SHA1_HASH_SIZE / 4];
 
 	int computed;
@@ -31,12 +30,12 @@ typedef struct SHA1_CTX {
 
 
 int SHA1_reset(SHA1_CTX* ctx);
-int SHA1_input(SHA1_CTX* ctx, const uint8_t* octets, unsigned int byte_count);
-int SHA1_final(SHA1_CTX* ctx, const uint8_t octet, unsigned int bit_count);
-int SHA1_result(SHA1_CTX* ctx, uint8_t digest[SHA1_HASH_SIZE]);
+int SHA1_input(SHA1_CTX* ctx, const unsigned char* octets, unsigned int byte_count);
+int SHA1_final(SHA1_CTX* ctx, const unsigned char octet, unsigned int bit_count);
+int SHA1_result(SHA1_CTX* ctx, unsigned char digest[SHA1_HASH_SIZE]);
 
-void SHA1_finalize(SHA1_CTX* ctx, uint8_t pad_byte);
-void SHA1_pad_msg(SHA1_CTX* ctx, uint8_t pad_byte);
+void SHA1_finalize(SHA1_CTX* ctx, unsigned char pad_byte);
+void SHA1_pad_msg(SHA1_CTX* ctx, unsigned char pad_byte);
 void SHA1_proc_msg(SHA1_CTX* ctx);
 
 #endif

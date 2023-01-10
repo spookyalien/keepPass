@@ -1,7 +1,7 @@
 #include "SHA1.h"
 
 static uint32_t add_temp;
-#define SHA1_add_length(context, length)                                   \
+#define SHA1_add_length(context, length)                                 \
 					 (add_temp = (context)->len_low,                     \
 					 (context)->corrupted =                              \
 				     (((context)->len_low += (length)) < add_temp) &&    \
@@ -37,7 +37,7 @@ int SHA1_reset(SHA1_CTX* ctx)
 	return SHA1_SUCCESS;
 }
 
-int SHA1_input(SHA1_CTX* ctx, const uint8_t* octets, unsigned int byte_count)
+int SHA1_input(SHA1_CTX* ctx, const unsigned char* octets, unsigned int byte_count)
 {
 	if (!byte_count)
 		return SHA1_SUCCESS;
@@ -73,16 +73,16 @@ int SHA1_input(SHA1_CTX* ctx, const uint8_t* octets, unsigned int byte_count)
 	return SHA1_SUCCESS;
 }
 
-int SHA1_final(SHA1_CTX* ctx, const uint8_t octet, unsigned int bit_count)
+int SHA1_final(SHA1_CTX* ctx, const unsigned char octet, unsigned int bit_count)
 {
-	uint8_t masks[8] = {
+	unsigned char masks[8] = {
 		/* 0 0b00000000 */ 0x00, /* 1 0b10000000 */ 0x80,
 		/* 2 0b11000000 */ 0xC0, /* 3 0b11100000 */ 0xE0,
 		/* 4 0b11110000 */ 0xF0, /* 5 0b11111000 */ 0xF8,
 		/* 6 0b11111100 */ 0xFC, /* 7 0b11111110 */ 0xFE
 	};
 
-	uint8_t markbit[8] = {
+	unsigned char markbit[8] = {
 		/* 0 0b10000000 */ 0x80, /* 1 0b01000000 */ 0x40,
 		/* 2 0b00100000 */ 0x20, /* 3 0b00010000 */ 0x10,
 		/* 4 0b00001000 */ 0x08, /* 5 0b00000100 */ 0x04,
@@ -103,12 +103,12 @@ int SHA1_final(SHA1_CTX* ctx, const uint8_t octet, unsigned int bit_count)
 		return ctx->corrupted;
 
 	SHA1_add_length(ctx, bit_count);
-	SHA1_finalize(ctx, (uint8_t)((octet & masks[bit_count]) | markbit[bit_count]));
+	SHA1_finalize(ctx, (unsigned char)((octet & masks[bit_count]) | markbit[bit_count]));
 
 	return SHA1_SUCCESS;
 }
 
-int SHA1_result(SHA1_CTX* ctx, uint8_t digest[SHA1_HASH_SIZE])
+int SHA1_result(SHA1_CTX* ctx, unsigned char digest[SHA1_HASH_SIZE])
 {
 	if (!ctx || !digest)
 		return SHA1_NULL;
@@ -126,7 +126,7 @@ int SHA1_result(SHA1_CTX* ctx, uint8_t digest[SHA1_HASH_SIZE])
 	return SHA1_SUCCESS;
 }
 
-void SHA1_finalize(SHA1_CTX* ctx, uint8_t pad_byte)
+void SHA1_finalize(SHA1_CTX* ctx, unsigned char pad_byte)
 {
 	SHA1_pad_msg(ctx, pad_byte);
 
@@ -138,7 +138,7 @@ void SHA1_finalize(SHA1_CTX* ctx, uint8_t pad_byte)
 	ctx->computed = 1;
 }
 
-void SHA1_pad_msg(SHA1_CTX* ctx, uint8_t pad_byte)
+void SHA1_pad_msg(SHA1_CTX* ctx, unsigned char pad_byte)
 {
 	if (ctx->msg_block_index >= (SHA1_MSG_BLOCK_SIZE - 8)) {
 		ctx->msg_block[ctx->msg_block_index++] = pad_byte;
@@ -160,14 +160,14 @@ void SHA1_pad_msg(SHA1_CTX* ctx, uint8_t pad_byte)
 		}
 	}
 
-	ctx->msg_block[56] = (uint8_t)(ctx->len_high >> 24);
-	ctx->msg_block[57] = (uint8_t)(ctx->len_high >> 16);
-	ctx->msg_block[58] = (uint8_t)(ctx->len_high >> 8);
-	ctx->msg_block[59] = (uint8_t)(ctx->len_high);
-	ctx->msg_block[60] = (uint8_t)(ctx->len_low >> 24);
-	ctx->msg_block[61] = (uint8_t)(ctx->len_low >> 16);
-	ctx->msg_block[62] = (uint8_t)(ctx->len_low >> 8);
-	ctx->msg_block[63] = (uint8_t)(ctx->len_low);
+	ctx->msg_block[56] = (unsigned char)(ctx->len_high >> 24);
+	ctx->msg_block[57] = (unsigned char)(ctx->len_high >> 16);
+	ctx->msg_block[58] = (unsigned char)(ctx->len_high >> 8);
+	ctx->msg_block[59] = (unsigned char)(ctx->len_high);
+	ctx->msg_block[60] = (unsigned char)(ctx->len_low >> 24);
+	ctx->msg_block[61] = (unsigned char)(ctx->len_low >> 16);
+	ctx->msg_block[62] = (unsigned char)(ctx->len_low >> 8);
+	ctx->msg_block[63] = (unsigned char)(ctx->len_low);
 
 	SHA1_proc_msg(ctx);
 }
@@ -176,7 +176,7 @@ void SHA1_proc_msg(SHA1_CTX* ctx)
 {
 	int t;
 	uint32_t temp;
-	uint32_t w[80];
+	uint32_t w[80] = {};
 	uint32_t A, B, C, D, E;
 
 	for (t = 0; t < 16; t++) {

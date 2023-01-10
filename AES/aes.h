@@ -1,4 +1,3 @@
-
 #ifndef AES_H
 #define AES_H
 #define BLOCK_LEN 16
@@ -77,10 +76,10 @@ void aes_decrypt_block(unsigned char* in_cipher,
 					   unsigned char out[BLOCK_LEN]);
 
 int aes_decrypt(unsigned char* in_cipher, int n,
-				 unsigned char* in_key, int keylen,
-			     unsigned char mode,
-				 unsigned char iv[BLOCK_LEN],
-				 unsigned char **out);
+				unsigned char* in_key, int keylen,
+				unsigned char mode,
+				unsigned char iv[BLOCK_SIDE],
+				unsigned char** out);
 
 /*
 	KEY SCHEDULING
