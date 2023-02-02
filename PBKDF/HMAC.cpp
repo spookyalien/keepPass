@@ -9,7 +9,7 @@
 */
 int HMAC(unsigned char* key, unsigned char* msg, unsigned char msg_digest_final[SHA1_HASH_SIZE])
 {
-	SHA1_CTX ctx;
+	SHA1 sha1;
 	unsigned char msg_digest[SHA1_HASH_SIZE] = {};
 	unsigned char i_pad[SHA1_MSG_BLOCK_SIZE] = {};
 	unsigned char o_pad[SHA1_MSG_BLOCK_SIZE] = {};
@@ -28,16 +28,16 @@ int HMAC(unsigned char* key, unsigned char* msg, unsigned char msg_digest_final[
 	}
 
 	// HMAC uses hash(o_key_pad || hash(i_key_pad || message)) to hash where || is concatenation
-	SHA1_reset(&ctx);
-	SHA1_input(&ctx, i_pad, SHA1_MSG_BLOCK_SIZE);
-	SHA1_input(&ctx, msg, strlen((char*)msg));
-	SHA1_result(&ctx, msg_digest);
+	sha1();
+	sha1.update(i_pad);  //len == block size
+	sha1.update(msg); //len = msg
+	sha1.result(msg_digest);
 
-	SHA1_reset(&ctx);
-	SHA1_input(&ctx, o_pad, SHA1_MSG_BLOCK_SIZE);
-	SHA1_input(&ctx, msg_digest, SHA1_HASH_SIZE);
+	sha1();
+	sha1.update(o_pad); //len == block size
+	sha1.update(msg_digest); // hash size
 	
-	return SHA1_result(&ctx, msg_digest_final);
+	return sha1.result(msg_digest_final);
 }
 
 /*
