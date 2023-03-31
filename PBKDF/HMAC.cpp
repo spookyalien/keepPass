@@ -7,14 +7,13 @@
 
 	returns: SHA1_SUCCESS (0) if successful, and -1 otherwise
 */
-int HMAC(unsigned char* key, unsigned char* msg, unsigned char msg_digest_final[SHA1_HASH_SIZE])
+int HMAC(unsigned char* key, int key_len, unsigned char* msg, int msg_len, unsigned char msg_digest_final[SHA1_HASH_SIZE])
 {
 	SHA1 sha1;
 	unsigned char msg_digest[SHA1_HASH_SIZE] = {};
 	unsigned char i_pad[SHA1_BLOCK_SIZE] = {};
 	unsigned char o_pad[SHA1_BLOCK_SIZE] = {};
 	int i = 0;
-	int key_len = strlen((char*)key);
 
 	key = compute_block_size_key(key, &key_len);
 
@@ -30,7 +29,7 @@ int HMAC(unsigned char* key, unsigned char* msg, unsigned char msg_digest_final[
 	// HMAC uses hash(o_key_pad || hash(i_key_pad || message)) to hash where || is concatenation
 	sha1 = SHA1();
 	sha1.update(i_pad, SHA1_BLOCK_SIZE);  //len == block size
-	sha1.update(msg, strlen((char*)msg)); //len = msg
+	sha1.update(msg, msg_len); //len = msg
 	sha1.result(msg_digest);
 
 	sha1 = SHA1();

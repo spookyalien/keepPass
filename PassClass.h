@@ -4,13 +4,15 @@
 class KeepPass
 {
 public:
-    void add_pass(const char* key)
+    void add_pass(std::string key)
+    {
+
+    }
+
+    void remove_pass(std::string key)
     {}
 
-    void remove_pass(const char* key)
-    {}
-
-    void print_pass(const char* key)
+    void print_pass(std::string key)
     {}
 };
 
