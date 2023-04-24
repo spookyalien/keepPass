@@ -1,5 +1,5 @@
 #include "pbkdf2.h"
-
+#include <iostream>
 /*
 	@param c: number of iterations desired
 	@param salt: sequence of random bits for better cryptography
@@ -49,6 +49,6 @@ int PBKDF2(unsigned char* pass, int pass_len, unsigned char* salt, int salt_len,
 
 		cursor += h_len;
 	}
-	return strlen((const char*)(*out));
+	return dk_len;
 }
 

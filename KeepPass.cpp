@@ -1,65 +1,78 @@
-#include <string>
-#include <iostream>
-#include "Utility/cpputility.h"
-//#include "Utility/utility.h"
 #include "PassClass.h"
-#include "PBKDF/pbkdf2.h"
-#include "AES/aes.h"
 
-int verify_master(std::string key)
+unsigned char* verify_pass()
 {
-    FILE* pass_file = fopen("key.asc","r+");
-    const char* tmp_salt = "salt";
-    unsigned char* key_to_match;
-    unsigned char* salt = (unsigned char*) tmp_salt;
-    char ch;
+    std::string master_key = "";
+    char hex_str_key[DK_LEN*2];
+    unsigned char* master_key_encr;
+    std::string salt;
+    int salt_len;
+    int round_count;
 
-    int key_len = PBKDF2((unsigned char*) key.c_str(), key.length(), salt, strlen((const char*) salt), 40960, 25, &key_to_match);
-    char hex_str[key_len];
-    string2hexString(key_to_match, hex_str);
+    printf("[!] Enter master password: ");
+    std::cin >> master_key;
+    
+    
+    std::ifstream file("key.asc");
 
-    if (is_empty_file(pass_file)) {
-        fprintf(pass_file, hex_str);
+    if (file.peek() == std::ifstream::traits_type::eof()) {
+        std::string temp;
+        printf("[!] Enter length of salt to use for master key: ");
+        std::cin >> temp;
+        salt_len = stoi_with_check(temp);
+        printf("[!] Enter number of rounds to use for master key: ");
+        std::cin >> temp;
+        round_count = stoi_with_check(temp);
+
+        if (salt_len == 0) {
+            printf("[!] Error with user input salt length. Resetting to 16...\n");
+            salt_len = 16;
+        }
+        if (round_count == 0) {
+            printf("[!] Error with user input round count. Resetting to 100000...\n");
+            round_count = 100000;
+        }
+
+        salt = generate_salt(salt_len);
+        PBKDF2((unsigned char*) master_key.c_str(), master_key.length(), (unsigned char*) salt.c_str(), salt_len, round_count, DK_LEN, &master_key_encr);
+
+        std::ofstream file("key.asc");
+        file << salt << std::endl;
+        file << salt_len << std::endl;
+        file << round_count << std::endl;
     }
     else {
-        int i = 0;
-        do {
-
-            ch = fgetc(pass_file);
-            if (ch != EOF) {
-                if (ch != hex_str[i]) 
-                    return 0;
-            }
-            i++;
- 
-        } while (ch != EOF);
+        std::string line;
+        std::getline(file, line);
+        salt = line;
+        std::getline(file, line);
+        salt_len = stoi_with_check(line);
+        std::getline(file, line);
+        round_count = stoi_with_check(line);
+        PBKDF2((unsigned char*) master_key.c_str(), master_key.length(), (unsigned char*) salt.c_str(), salt_len, round_count, DK_LEN, &master_key_encr);
     }
-    
 
-    fclose(pass_file);
-    return 1;
+    master_key = "";
+    file.close();
+
+    return master_key_encr;
 }
 
 void launch()
 {
     KeepPass pass;
     std::string user_input = "";
-    std::string master_key = "";
+
     printf("--------------------------------\n");
     printf("\tWelcome to KeepPass\t\n");
     printf("--------------------------------\n");
-    printf("[-] Enter the master key: ");
-    std::cin >> master_key;
-    if (verify_master(master_key)) {
-        printf("[+] Key verified, proceed as normal...\n");
+    unsigned char* master_key = verify_pass();
+    for (int i = 0; i < DK_LEN; i++) {
+        printf("%02X ", master_key[i]);
     }
-    else {
-        printf("[!] Error with key, exiting...\n");
-        exit(0);
-    }
-
     print_menu();
     while (true) {
+        printf("> ");
         std::cin >> user_input;
         switch (stoi_with_check(user_input)) {
         case 1:
@@ -72,6 +85,9 @@ void launch()
             pass.print_pass(master_key);
             break;
         case 4:
+            pass.reset_pass();
+            break;
+        case 5:
             exit(0);
         default:
             printf("[!] Invalid input.\n");

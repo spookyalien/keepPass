@@ -1,12 +1,12 @@
 CC=g++
-CFLAGS= -c -Wall -Wnarrowing
+CFLAGS= -c -Wall -Wnarrowing 
 
 all: keepPass
 
 keepPass: KeepPass.o cpputility.o aes.o SHA1.o HMAC.o pbkdf2.o
-	$(CC) KeepPass.o cpputility.o aes.o SHA1.o HMAC.o pbkdf2.o
+	$(CC) KeepPass.o cpputility.o aes.o SHA1.o HMAC.o pbkdf2.o -o keepPass
 
-KeepPass.o: KeepPass.cpp
+KeepPass.o: KeepPass.cpp PassClass.h
 	$(CC) $(CFLAGS) KeepPass.cpp
 
 cpputility.o: Utility/cpputility.cpp
@@ -26,4 +26,4 @@ pbkdf2.o: PBKDF/pbkdf2.cpp
 	
 
 clean:
-	rm *.o
+	rm *.o key.asc

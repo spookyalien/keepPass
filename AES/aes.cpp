@@ -209,6 +209,7 @@ int aes_encrypt_schedule(unsigned char* in_text, int n,
     else {
         *out = (unsigned char*) malloc(out_len * sizeof(unsigned char));
     }
+    
 
     // encrypt complete blocks
     for (int i = 0; i < n_blocks; i++) {
