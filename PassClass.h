@@ -1,8 +1,6 @@
 #ifndef PASSCLASS_H
 #define PASSCLASS_H
 
-#include <string>
-#include <iostream>
 #include <fstream>
 #include "Utility/cpputility.h"
 #include "PBKDF/pbkdf2.h"
@@ -15,17 +13,53 @@ class KeepPass
         void remove_pass(unsigned char* key);
         void print_pass(unsigned char* key);
         void reset_pass();
-
+        const char* pass_txt = "pass.txt";
+    private:
+        struct structure
+        {
+            std::string word;
+            unsigned char* iv;
+            unsigned char* cipher;
+            int encr_len;
+        };
+        void write_pass(structure item, unsigned char* key);
 };
 
 
+void KeepPass::write_pass(KeepPass::structure item, unsigned char* key)
+{
+    std::ofstream pass_file(pass_txt, std::ios::app);
+    const char hex[17] = "0123456789ABCDEF";
+
+    std::cin >> item.word;
+    std::string iv = generate_salt(DEFAULT_LEN);
+    auto iv_chrs = iv.c_str();
+    item.iv = reinterpret_cast<unsigned char*>(const_cast<char*>(iv_chrs));
+
+    auto pass_chrs = item.word.c_str();
+    unsigned char* tmp = reinterpret_cast<unsigned char*>(const_cast<char*>(pass_chrs));
+    
+    item.encr_len = aes_encrypt(tmp, item.word.size(), key, AES_256, AES_CBC, item.iv, &item.cipher);
+    memset(tmp, 0, item.word.size());
+    item.word.resize(item.word.capacity(), 0);
+    cleanse(&item.word[0], item.word.size());
+    item.word.clear();
+
+    for (int i = 0; i < item.encr_len; i++) {
+        pass_file << hex[item.cipher[i] >> 4] << hex[item.cipher[i] & 0x0f];
+    }
+    pass_file << item.iv << item.encr_len << std::endl;
+}
+
 void KeepPass::add_pass(unsigned char* key)
 {
-    std::ofstream pass_file("pass.txt");
-    std::string new_pass;
-
+    structure site;
+    structure pass;
+ 
+    printf("[+] Enter site for this password to be used: ");
+    write_pass(site, key);
     printf("[+] Please enter the password to store: ");
-    std::cin >> new_pass;
+    write_pass(pass, key);
 }
 
 void KeepPass::remove_pass(unsigned char* key)
@@ -34,14 +68,32 @@ void KeepPass::remove_pass(unsigned char* key)
 }
 void KeepPass::print_pass(unsigned char* key)
 {
+    std::ifstream pass_file(pass_txt, std::ios::out);
+    std::string line;
+    unsigned char* dec = NULL;
 
+    if (pass_file.is_open()) {
+        while (std::getline(pass_file, line)) {
+            std::string num = line.substr(line.size()-2, 2);
+            int len = std::stoi(num);
+            std::string iv_str = line.substr(line.size()-2-DEFAULT_LEN, DEFAULT_LEN);
+            std::string encr_pass = line.substr(0, line.size()-2-DEFAULT_LEN);
+            auto ciph_chrs = encr_pass.c_str();
+            auto iv_chrs = iv_str.c_str();
+
+            unsigned char* iv = reinterpret_cast<unsigned char*>(const_cast<char*>(iv_chrs));
+            unsigned char* cipher = reinterpret_cast<unsigned char*>(const_cast<char*>(ciph_chrs));
+
+            //int decr_len = aes_decrypt(cipher, line.size()-2-DEFAULT_LEN, key, AES_256, AES_CBC, iv, &dec);
+        }
+    }
+
+    pass_file.close();
 }
 
 void KeepPass::reset_pass() 
 {
-    if( remove("key.asc") != 0 && remove("pass.txt") != 0)
-        perror("Error deleting file");
-    else
+    if( remove("key.asc") == 0 && remove("pass.txt") == 0)
         puts( "File successfully deleted");
     
     return;

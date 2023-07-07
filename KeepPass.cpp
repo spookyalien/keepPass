@@ -3,26 +3,26 @@
 unsigned char* verify_pass()
 {
     std::string master_key = "";
-    char hex_str_key[DK_LEN*2];
-    unsigned char* master_key_encr;
+    unsigned char* master_key_encr = NULL;
     std::string salt;
     int salt_len;
     int round_count;
 
     printf("[!] Enter master password: ");
-    std::cin >> master_key;
-    
+    std::getline(std::cin, master_key);
     
     std::ifstream file("key.asc");
 
     if (file.peek() == std::ifstream::traits_type::eof()) {
         std::string temp;
-        printf("[!] Enter length of salt to use for master key: ");
-        std::cin >> temp;
-        salt_len = stoi_with_check(temp);
-        printf("[!] Enter number of rounds to use for master key: ");
-        std::cin >> temp;
-        round_count = stoi_with_check(temp);
+        printf("[!] Enter length of salt to use for master key (Default - 16): ");
+        std::getline(std::cin, temp);
+        if (!temp.empty())
+            salt_len = stoi_with_check(temp);
+        printf("[!] Enter number of rounds to use for master key (Default - 100,000): ");
+        std::getline(std::cin, temp);
+        if (!temp.empty())
+            round_count = stoi_with_check(temp);
 
         if (salt_len == 0) {
             printf("[!] Error with user input salt length. Resetting to 16...\n");
@@ -34,8 +34,7 @@ unsigned char* verify_pass()
         }
 
         salt = generate_salt(salt_len);
-        PBKDF2((unsigned char*) master_key.c_str(), master_key.length(), (unsigned char*) salt.c_str(), salt_len, round_count, DK_LEN, &master_key_encr);
-
+        PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(master_key.c_str())), master_key.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), salt_len, round_count, DK_LEN, &master_key_encr);
         std::ofstream file("key.asc");
         file << salt << std::endl;
         file << salt_len << std::endl;
@@ -49,10 +48,18 @@ unsigned char* verify_pass()
         salt_len = stoi_with_check(line);
         std::getline(file, line);
         round_count = stoi_with_check(line);
-        PBKDF2((unsigned char*) master_key.c_str(), master_key.length(), (unsigned char*) salt.c_str(), salt_len, round_count, DK_LEN, &master_key_encr);
+        
+        PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(master_key.c_str())), master_key.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), salt_len, round_count, DK_LEN, &master_key_encr);
+    
+        for (int i = 0; i < 20; i++) {
+            printf("%02X ", master_key_encr[i]);
+        }
     }
 
-    master_key = "";
+
+    master_key.resize(master_key.capacity(), 0);
+    cleanse(&master_key[0], master_key.size());
+    master_key.clear();
     file.close();
 
     return master_key_encr;
@@ -66,10 +73,8 @@ void launch()
     printf("--------------------------------\n");
     printf("\tWelcome to KeepPass\t\n");
     printf("--------------------------------\n");
+    
     unsigned char* master_key = verify_pass();
-    for (int i = 0; i < DK_LEN; i++) {
-        printf("%02X ", master_key[i]);
-    }
     print_menu();
     while (true) {
         printf("> ");
@@ -86,7 +91,7 @@ void launch()
             break;
         case 4:
             pass.reset_pass();
-            break;
+            exit(0);
         case 5:
             exit(0);
         default:
@@ -178,8 +183,8 @@ int main()
     printf("Decrypted: ");
     printCharArr(dec, decr_len);
     free(cipher);
-    free(dec);
-*/
+    free(dec); */
+
     // unsigned char* out;
     // int len = PBKDF2((unsigned char*) "passwordPASSWORDpassword", 24, (unsigned char*) "saltSALTsaltSALTsaltSALTsaltSALTsalt", 36, 40960, 25, &out);
     // printf("%d\n", len);

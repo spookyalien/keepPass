@@ -1,7 +1,6 @@
 #include "cpputility.h"
 
 
-
 void string2hexString(unsigned char* input, char* output)
 {
     int loop;
@@ -20,17 +19,6 @@ void string2hexString(unsigned char* input, char* output)
     output[i++] = '\0';
 }
 
-
-void printCharArr(unsigned char* arr, int len)
-{
-    const char hex[17] = "0123456789ABCDEF";
-
-    printf("{ ");
-    for (int i = 0; i < len; i++) {
-        printf("%c%c ", hex[arr[i] >> 4], hex[arr[i] & 0x0f]);
-    }
-    printf("}\n");
-}
 
 void reverse_arr(unsigned char* arr, int i, int f)
 {
@@ -104,11 +92,24 @@ std::string generate_salt(int len)
     return salt;
 }
 
+void cleanse(void* ptr, size_t len) {
+  memset_func(ptr, 0, len);
+}
+
+void printCharArr(unsigned char* txt)
+{
+    for (int i = 0; ; i++) {
+        if (txt[i] != NULL)
+            printf("%02X ", txt[i]);
+    }
+    printf("\n");
+}
+
 void print_menu()
 {
     printf("1. Add a password.\n");
     printf("2. Delete a password.\n");
     printf("3. Print all passwords.\n");
-    printf("4. Reset master password.\n");
+    printf("4. Reset master password (Deletes all passwords!).\n");
     printf("5. Exit.\n");
 }
