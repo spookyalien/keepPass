@@ -6,6 +6,9 @@
 #include "PBKDF/pbkdf2.h"
 #include "AES/aes.h"
 
+#define DEFAULT_ROUNDS 600000
+#define DEFAULT_SALT_LEN 16
+
 class KeepPass
 {
     public:
@@ -31,15 +34,16 @@ void KeepPass::write_pass(KeepPass::structure item, unsigned char* key)
     std::ofstream pass_file(pass_txt, std::ios::app);
     const char hex[17] = "0123456789ABCDEF";
 
-    std::cin >> item.word;
-    std::string iv = generate_salt(DEFAULT_LEN);
+    std::getline(std::cin, item.word);
+    std::string iv = generate_salt(DEFAULT_SALT_LEN);
     auto iv_chrs = iv.c_str();
     item.iv = reinterpret_cast<unsigned char*>(const_cast<char*>(iv_chrs));
 
     auto pass_chrs = item.word.c_str();
     unsigned char* tmp = reinterpret_cast<unsigned char*>(const_cast<char*>(pass_chrs));
-    
     item.encr_len = aes_encrypt(tmp, item.word.size(), key, AES_256, AES_CBC, item.iv, &item.cipher);
+
+    // Clear sensitive info
     memset(tmp, 0, item.word.size());
     item.word.resize(item.word.capacity(), 0);
     cleanse(&item.word[0], item.word.size());
@@ -74,17 +78,19 @@ void KeepPass::print_pass(unsigned char* key)
 
     if (pass_file.is_open()) {
         while (std::getline(pass_file, line)) {
-            std::string num = line.substr(line.size()-2, 2);
-            int len = std::stoi(num);
-            std::string iv_str = line.substr(line.size()-2-DEFAULT_LEN, DEFAULT_LEN);
-            std::string encr_pass = line.substr(0, line.size()-2-DEFAULT_LEN);
-            auto ciph_chrs = encr_pass.c_str();
-            auto iv_chrs = iv_str.c_str();
+            try {
+                int len = line.size() - 2 - DEFAULT_SALT_LEN;
+                int num = stoi_with_check(line.substr(line.size() - 2, 2));
+                std::string iv_str = line.substr(len, DEFAULT_SALT_LEN);
+                std::string encr_pass = line.substr(0, len);
+                auto iv_chrs = iv_str.c_str();
 
-            unsigned char* iv = reinterpret_cast<unsigned char*>(const_cast<char*>(iv_chrs));
-            unsigned char* cipher = reinterpret_cast<unsigned char*>(const_cast<char*>(ciph_chrs));
-
-            //int decr_len = aes_decrypt(cipher, line.size()-2-DEFAULT_LEN, key, AES_256, AES_CBC, iv, &dec);
+                unsigned char* iv = reinterpret_cast<unsigned char*>(const_cast<char*>(iv_chrs));
+                unsigned char* cipher = hexStringToUnsignedChar(encr_pass);
+                int decr_len = aes_decrypt(cipher, num, key, AES_256, AES_CBC, iv, &dec);
+                std::cout << dec << std::endl;
+            }
+            catch (std::out_of_range e) {}
         }
     }
 

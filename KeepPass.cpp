@@ -5,8 +5,6 @@ unsigned char* verify_pass()
     std::string master_key = "";
     unsigned char* master_key_encr = NULL;
     std::string salt;
-    int salt_len;
-    int round_count;
 
     printf("[!] Enter master password: ");
     std::getline(std::cin, master_key);
@@ -14,46 +12,16 @@ unsigned char* verify_pass()
     std::ifstream file("key.asc");
 
     if (file.peek() == std::ifstream::traits_type::eof()) {
-        std::string temp;
-        printf("[!] Enter length of salt to use for master key (Default - 16): ");
-        std::getline(std::cin, temp);
-        if (!temp.empty())
-            salt_len = stoi_with_check(temp);
-        printf("[!] Enter number of rounds to use for master key (Default - 100,000): ");
-        std::getline(std::cin, temp);
-        if (!temp.empty())
-            round_count = stoi_with_check(temp);
-
-        if (salt_len == 0) {
-            printf("[!] Error with user input salt length. Resetting to 16...\n");
-            salt_len = 16;
-        }
-        if (round_count == 0) {
-            printf("[!] Error with user input round count. Resetting to 100000...\n");
-            round_count = 100000;
-        }
-
-        salt = generate_salt(salt_len);
-        PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(master_key.c_str())), master_key.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), salt_len, round_count, DK_LEN, &master_key_encr);
+        salt = generate_salt(DEFAULT_SALT_LEN);
+        PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(master_key.c_str())), master_key.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), DEFAULT_SALT_LEN, DEFAULT_ROUNDS, DK_LEN, &master_key_encr);
         std::ofstream file("key.asc");
         file << salt << std::endl;
-        file << salt_len << std::endl;
-        file << round_count << std::endl;
     }
     else {
         std::string line;
         std::getline(file, line);
         salt = line;
-        std::getline(file, line);
-        salt_len = stoi_with_check(line);
-        std::getline(file, line);
-        round_count = stoi_with_check(line);
-        
-        PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(master_key.c_str())), master_key.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), salt_len, round_count, DK_LEN, &master_key_encr);
-    
-        for (int i = 0; i < 20; i++) {
-            printf("%02X ", master_key_encr[i]);
-        }
+        PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(master_key.c_str())), master_key.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), DEFAULT_SALT_LEN, DEFAULT_ROUNDS, DK_LEN, &master_key_encr);
     }
 
 
@@ -78,7 +46,7 @@ void launch()
     print_menu();
     while (true) {
         printf("> ");
-        std::cin >> user_input;
+        std::getline(std::cin, user_input);
         switch (stoi_with_check(user_input)) {
         case 1:
             pass.add_pass(master_key);
