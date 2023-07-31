@@ -1,33 +1,22 @@
 #include "cpputility.h"
 
 
-unsigned char* hexStringToUnsignedChar(const std::string& hexString) 
+void string2hexString(unsigned char* input, char* output)
 {
-    size_t size;
-    size = hexString.length() / 2;  // Each byte is represented by 2 characters in a hex string
-    unsigned char* result = new unsigned char[size];
-
-    for (size_t i = 0; i < size; ++i) {
-        unsigned int byteValue = 0;
-        for (int j = 0; j < 2; ++j) {
-            char c = hexString[i * 2 + j];
-
-            // Convert hexadecimal character to integer value
-            if (c >= '0' && c <= '9') {
-                byteValue = (byteValue << 4) | (c - '0');
-            }
-            else if (c >= 'A' && c <= 'F') {
-                byteValue = (byteValue << 4) | (c - 'A' + 10);
-            }
-            else if (c >= 'a' && c <= 'f') {
-                byteValue = (byteValue << 4) | (c - 'a' + 10);
-            }
-        }
-
-        result[i] = static_cast<unsigned char>(byteValue);
+    int loop;
+    int i; 
+    
+    i=0;
+    loop=0;
+    
+    while(input[loop] != '\0')
+    {
+        sprintf((char*)(output+i),"%02X", input[loop]);
+        loop+=1;
+        i+=2;
     }
-
-    return result;
+    //insert NULL at the end of the output string
+    output[i++] = '\0';
 }
 
 
