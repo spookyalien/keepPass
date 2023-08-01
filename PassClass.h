@@ -7,9 +7,15 @@
 #include "AES/aes.h"
 
 #include <wx/wxprec.h>
+#include <wx/display.h>
 #ifndef WX_PRECOMP
     #include <wx/wx.h>
 #endif
+
+#define WINDOW_X 950
+#define WINDOW_Y 540
+#define BOX_X 300
+#define BOX_Y 50
 
 class keepPassMenu: public wxApp
 {
@@ -23,6 +29,7 @@ class keepPassFrame: public wxFrame
         keepPassFrame(const wxString& title, const wxPoint& pos, const wxSize& size);
     private:
         void OnHello(wxCommandEvent& event);
+        void OnEnterKey(wxCommandEvent& event);
         void OnExit(wxCommandEvent& event);
         void OnAbout(wxCommandEvent& event);
         wxDECLARE_EVENT_TABLE();

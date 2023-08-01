@@ -4,11 +4,11 @@ CFLAGS= -c -std=c++11 -Wall -Wnarrowing `wx-config --cxxflags`
 LDFLAGS = `wx-config --libs`
 all: keepPass
 
-keepPass: KeepPass.o cpputility.o aes.o SHA1.o HMAC.o pbkdf2.o
-	$(CC) KeepPass.o cpputility.o aes.o SHA1.o HMAC.o pbkdf2.o -o keepPass $(LDFLAGS)
+keepPass: keepPass.o cpputility.o aes.o SHA1.o HMAC.o pbkdf2.o
+	$(CC) keepPass.o cpputility.o aes.o SHA1.o HMAC.o pbkdf2.o -o keepPass $(LDFLAGS)
 
-KeepPass.o: KeepPass.cpp PassClass.h
-	$(CC) $(CFLAGS) KeepPass.cpp
+keepPass.o: keepPass.cpp PassClass.h
+	$(CC) $(CFLAGS) keepPass.cpp
 
 cpputility.o: Utility/cpputility.cpp
 	$(CC) $(CFLAGS) Utility/cpputility.cpp
