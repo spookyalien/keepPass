@@ -8,14 +8,16 @@
 
 #include <wx/wxprec.h>
 #include <wx/display.h>
+#include <wx/artprov.h>
+#include <map>
 #ifndef WX_PRECOMP
     #include <wx/wx.h>
 #endif
 
+#define ROUND_COUNT 100000
+#define DEFAULT_SALT_LEN 16
 #define WINDOW_X 950
 #define WINDOW_Y 540
-#define BOX_X 300
-#define BOX_Y 50
 
 class keepPassMenu: public wxApp
 {
@@ -28,20 +30,23 @@ class keepPassFrame: public wxFrame
     public:
         keepPassFrame(const wxString& title, const wxPoint& pos, const wxSize& size);
     private:
-        void OnHello(wxCommandEvent& event);
         void OnEnterKey(wxCommandEvent& event);
+        void OnClose(wxCloseEvent& event);
         void OnExit(wxCommandEvent& event);
         void OnAbout(wxCommandEvent& event);
+        wxListBox* listBox1 = new wxListBox(this, wxID_ANY);
+        wxMenuBar* mainMenu = new wxMenuBar();
+        
+        unsigned char* master_key_encr;
         wxDECLARE_EVENT_TABLE();
 };
 
-enum
+enum 
 {
-    ID_Hello = 1
+    ID_OPTIONS = 99
 };
 
 wxBEGIN_EVENT_TABLE(keepPassFrame, wxFrame)
-EVT_MENU(ID_Hello,   keepPassFrame::OnHello)
 EVT_MENU(wxID_EXIT,  keepPassFrame::OnExit)
 EVT_MENU(wxID_ABOUT, keepPassFrame::OnAbout)
 wxEND_EVENT_TABLE()

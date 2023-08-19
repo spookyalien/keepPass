@@ -1,58 +1,54 @@
 #include "PassClass.h"
 
-/*unsigned char* verify_pass()
+bool verify_pass(std::string master_key)
 {
-    std::string master_key = "";
     unsigned char* master_key_encr = NULL;
     std::string salt;
+    int key_len;
     int salt_len = 16;
     int round_count = 100000;
-
-    printf("[!] Enter master password: ");
-    std::getline(std::cin, master_key);
+    const char hex[17] = "0123456789ABCDEF";
     
     std::ifstream file("key.asc");
 
+    // Master hash not created yet add as normal
     if (file.peek() == std::ifstream::traits_type::eof()) {
-        std::string temp;
-        printf("[!] Enter length of salt to use for master key (Default - 16): ");
-        std::getline(std::cin, temp);
-
-        if (!temp.empty())
-            salt_len = stoi_with_check(temp);
-    
-        printf("[!] Enter number of rounds to use for master key (Default - 100,000): ");
-        std::getline(std::cin, temp);
-
-        if (!temp.empty())
-            round_count = stoi_with_check(temp);
-
-        if (salt_len == 0) {
-            printf("[!] Error with user input salt length. Resetting to 16...\n");
-            salt_len = 16;
-        }
-        if (round_count == 0) {
-            printf("[!] Error with user input round count. Resetting to 100000...\n");
-            round_count = 100000;
-        }
-
         salt = generate_salt(salt_len);
-        PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(master_key.c_str())), master_key.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), salt_len, round_count, DK_LEN, &master_key_encr);
+        key_len = PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(master_key.c_str())), master_key.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), salt_len, round_count, DK_LEN, &master_key_encr);
         std::ofstream file("key.asc");
         file << salt << std::endl;
         file << round_count << std::endl;
         file << salt_len << std::endl;
+        
+        for (int i = 0; i < key_len; i++) {
+            file << hex[master_key_encr[i] >> 4] << hex[master_key_encr[i] & 0x0f];
+        }
+        file << std::endl;
     }
     else {
         std::string line;
         std::getline(file, line);
         salt = line;
         std::getline(file, line);
+        round_count = stoi_with_check(line);
+        std::getline(file, line);
         salt_len = stoi_with_check(line);
         std::getline(file, line);
-        round_count = stoi_with_check(line);
+        std::cout << line << std::endl;
+        auto ciph_chrs = line.c_str();
+        unsigned char* cipher = reinterpret_cast<unsigned char*>(const_cast<char*>(ciph_chrs));
+
         
-        PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(master_key.c_str())), master_key.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), salt_len, round_count, DK_LEN, &master_key_encr);
+        key_len = PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(master_key.c_str())), master_key.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), salt_len, round_count, DK_LEN, &master_key_encr);
+        
+        for (int i = 0; i < key_len; i++) {
+            if (master_key_encr[i] != cipher[i]) {
+                master_key.resize(master_key.capacity(), 0);
+                cleanse(&master_key[0], master_key.size());
+                master_key.clear();
+                return false;
+            }
+        }
     }
 
 
@@ -60,10 +56,10 @@
     cleanse(&master_key[0], master_key.size());
     master_key.clear();
     file.close();
-
-    return master_key_encr;
+    return true;
 }
 
+/*
 void launch()
 {
     KeepPass pass;
@@ -106,7 +102,6 @@ bool keepPassMenu::OnInit()
 {
     wxDisplay disp;
     wxRect disp_rect = disp.GetClientArea();
-
     keepPassFrame *frame = new keepPassFrame( "keepPass", wxPoint((disp_rect.GetWidth()-WINDOW_X)/2, (disp_rect.GetHeight()-WINDOW_Y)/2), wxSize(WINDOW_X, WINDOW_Y) );
     frame->Show( true );
     return true;
@@ -115,51 +110,58 @@ bool keepPassMenu::OnInit()
 keepPassFrame::keepPassFrame(const wxString& title, const wxPoint& pos, const wxSize& size)
         : wxFrame(NULL, wxID_ANY, title, pos, size)
 {
+    wxTextEntryDialog* pass_input = new wxTextEntryDialog(this,"Enter master password.","keepPass",wxEmptyString,wxOK|wxTE_PASSWORD);
+    pass_input->Bind(wxEVT_TEXT_ENTER, &keepPassFrame::OnEnterKey, this, wxID_ANY);
+    int result = pass_input->ShowModal();
 
-    wxPanel* panel = new wxPanel(this, wxID_ANY);
-    //wxMenu *menuFile = new wxMenu;
-    /*menuFile->Append(ID_Hello, "&Hello...\tCtrl-H",
-                     "Help string shown in status bar for this menu item");
-    menuFile->AppendSeparator();
-    menuFile->Append(wxID_EXIT);
-    wxMenu *menuHelp = new wxMenu;
+    if (result == wxID_OK) {
+        if(!verify_pass(pass_input->GetValue().ToStdString()))
+            exit(0);
+    }
+    auto menuFile = new wxMenu();
+    auto menuItemFileQuit = menuFile->Append(wxID_EXIT);
+    menuItemFileQuit->SetBitmap(wxArtProvider::GetBitmap(wxART_QUIT, wxART_MENU));
+    auto menuEdit = new wxMenu();
+    menuEdit->Append(wxID_PREFERENCES);
+
+    auto menuHelp = new wxMenu();
     menuHelp->Append(wxID_ABOUT);
-    wxMenuBar *menuBar = new wxMenuBar;
-    menuBar->Append( menuFile, "&File" );
-    menuBar->Append( menuHelp, "&Help" );
-    SetMenuBar( menuBar );
-    CreateStatusBar();
-    SetStatusText( "keepPass V2.0" );*/
-    wxTextCtrl* pass_box = new wxTextCtrl(panel, wxID_ANY, wxEmptyString,
-                                              wxPoint((WINDOW_X/2) - (BOX_X/2), (WINDOW_Y/2)-(BOX_Y/2)), wxSize(BOX_X, BOX_Y),
-                                              wxTE_PASSWORD | wxTE_PROCESS_ENTER | wxBORDER_SIMPLE);
-    pass_box->SetBackgroundColour(wxColour(252, 62, 56));
-    pass_box->Bind(wxEVT_TEXT_ENTER, &keepPassFrame::OnEnterKey, this);
-    // wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
-    // sizer->Add(pass_box, 0, wxEXPAND | wxALL, 10);
 
-    // panel->SetSizer(sizer);
+    pass_input->Destroy();
+
+    mainMenu->Append(menuFile, "&File");
+    mainMenu->Append(menuEdit, "&Edit");
+    mainMenu->Append(menuHelp, "&Help");
+
+    SetMenuBar(mainMenu);
+
+
+    
+    Connect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(keepPassFrame::OnClose));
 }
 
 void keepPassFrame::OnEnterKey(wxCommandEvent& event) 
 {
     wxTextCtrl* passwordEntry = dynamic_cast<wxTextCtrl*>(event.GetEventObject());
-    wxString password = passwordEntry->GetValue();
-
+    wxString input = passwordEntry->GetValue();
+    exit(0);
 }
 
 void keepPassFrame::OnExit(wxCommandEvent& event)
 {
     Close( true );
 }
+
 void keepPassFrame::OnAbout(wxCommandEvent& event)
 {
     wxMessageBox( "This is a password manager that aims to keep passwords safe and accessible using AES256 and PBKDF2.",
                   "About keepPass", wxOK | wxICON_INFORMATION );
 }
-void keepPassFrame::OnHello(wxCommandEvent& event)
+
+void keepPassFrame::OnClose(wxCloseEvent& event)
 {
-    wxLogMessage("Hello world from wxWidgets!");
+    Destroy();
+    wxGetApp().ExitMainLoop();
 }
 
 
