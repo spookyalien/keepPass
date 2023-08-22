@@ -34,30 +34,17 @@ bool verify_pass(std::string master_key)
         std::getline(file, line);
         salt_len = stoi_with_check(line);
         std::getline(file, line);
-        std::cout << line << std::endl;
-        auto ciph_chrs = line.c_str();
-        unsigned char* cipher = new unsigned char[line.length() / 2];
-
-        for (int i = 0; i < line.length(); i += 2) {
-            std::istringstream iss(line.substr(i, 2));
-            int hex_val;
-            iss >> std::hex >> hex_val;
-            cipher[i / 2] = static_cast<unsigned char>(hex_val);
-        }
-
 
         key_len = PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(master_key.c_str())), master_key.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), salt_len, round_count, DK_LEN, &master_key_encr);
-
-        for (int i = 0; i < key_len; i++) {
-            if (master_key_encr[i] != cipher[i]) {
-                master_key.resize(master_key.capacity(), 0);
-                cleanse(&master_key[0], master_key.size());
-                master_key.clear();
-                delete[] cipher;
-                return false;
-            }
+    
+        char str_key[key_len];
+        string2hexString(master_key_encr, str_key);
+        if (strcmp(str_key, line.c_str()) != 0) {
+            master_key.resize(master_key.capacity(), 0);
+            cleanse(&master_key[0], master_key.size());
+            master_key.clear();
+            return false;
         }
-        delete[] cipher;
     }
 
 
@@ -129,10 +116,10 @@ keepPassFrame::keepPassFrame(const wxString& title, const wxPoint& pos, const wx
             exit(0);
     }
 
-    wxFlexGridSizer* fgSizer1;
-    fgSizer1 = new wxFlexGridSizer(0, 2, 0, 0);
-    fgSizer1->SetFlexibleDirection(wxBOTH);
-    fgSizer1->SetNonFlexibleGrowMode(wxFLEX_GROWMODE_SPECIFIED);
+    wxFlexGridSizer* menu_sizer;
+    menu_sizer = new wxFlexGridSizer(0, 2, 0, 0);
+    menu_sizer->SetFlexibleDirection(wxBOTH);
+    menu_sizer->SetNonFlexibleGrowMode(wxFLEX_GROWMODE_SPECIFIED);
 
     auto menuFile = new wxMenu();
     auto menuItemFileQuit = menuFile->Append(wxID_EXIT);
@@ -146,16 +133,37 @@ keepPassFrame::keepPassFrame(const wxString& title, const wxPoint& pos, const wx
 
     add_pass = new wxButton(this, BUTTON_ADD, _T("Add Password"), wxDefaultPosition, wxDefaultSize, 0);
     del_pass = new wxButton(this, BUTTON_DEL, _T("Remove Password"), wxDefaultPosition, wxDefaultSize, 0);
-    fgSizer1->Add(add_pass, 0, wxALL, 5);
-    fgSizer1->Add(del_pass, 0, wxALL, 5);
-
-    mainMenu->Append(menuFile, "&File");
-    mainMenu->Append(menuEdit, "&Edit");
-    mainMenu->Append(menuHelp, "&Help");
+    menu_sizer->Add(add_pass, 0, wxALL, 5);
+    menu_sizer->Add(del_pass, 0, wxALL, 5);
     
-    this->SetSizer(fgSizer1);
+    wxBoxSizer* box_sizer = new wxBoxSizer(wxHORIZONTAL);
+
+    pass_list->Bind(wxEVT_LISTBOX_DCLICK, [&](wxCommandEvent& event) {
+        pass_selection->Append(pass_list->GetStringSelection());
+        pass_selection->SetSelection(0);
+        pass_list->Delete(pass_list->GetSelection());
+    });
+
+    pass_selection->Bind(wxEVT_LISTBOX_DCLICK, [&](wxCommandEvent& event) {
+        pass_list->Append(pass_selection->GetStringSelection());
+        pass_list->SetSelection(0);
+        pass_selection->Delete(pass_selection->GetSelection());
+    });
+
+    box_sizer->Add(pass_list, wxSizerFlags(1).Expand().Border(wxALL, 20));
+    box_sizer->Add(pass_selection, wxSizerFlags(1).Expand().Border(wxALL, 20));
+
+    for (auto item : {"draw", "cut", "paste", "delete", "open", "close", "remove", "edit", "find", "increment", "decrement", "write", "read", "post", "build", "make", "release", "create", "choose", "erase"})
+        pass_list->Append(item);
+    pass_list->SetSelection(0);  
+
+    main_menu->Append(menuFile, "&File");
+    main_menu->Append(menuEdit, "&Edit");
+    main_menu->Append(menuHelp, "&Help");
+    
+    this->SetSizer(menu_sizer);
     this->Layout();
-    this->SetMenuBar(mainMenu); 
+    this->SetMenuBar(main_menu);
     this->Connect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(keepPassFrame::OnClose));
 }
 
