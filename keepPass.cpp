@@ -36,17 +36,18 @@ bool verify_pass(std::string master_key)
         std::getline(file, line);
 
         key_len = PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(master_key.c_str())), master_key.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), salt_len, round_count, DK_LEN, &master_key_encr);
-    
-        char str_key[key_len];
-        string2hexString(master_key_encr, str_key);
-        if (strcmp(str_key, line.c_str()) != 0) {
-            master_key.resize(master_key.capacity(), 0);
-            cleanse(&master_key[0], master_key.size());
-            master_key.clear();
-            return false;
+        
+
+        for (int i = 0; i < key_len; i++) {
+            if (hex[master_key_encr[i] >> 4] != line[i*2] || hex[master_key_encr[i] & 0x0f] != line[(i*2)+1]) {
+                master_key.resize(master_key.capacity(), 0);
+                cleanse(&master_key[0], master_key.size());
+                master_key.clear();
+                file.close();
+                return false;
+            }
         }
     }
-
 
     master_key.resize(master_key.capacity(), 0);
     cleanse(&master_key[0], master_key.size());
