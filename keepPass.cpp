@@ -36,10 +36,9 @@ bool verify_pass(std::string master_key)
         std::getline(file, line);
 
         key_len = PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(master_key.c_str())), master_key.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), salt_len, round_count, DK_LEN, &master_key_encr);
-        
 
         for (int i = 0; i < key_len; i++) {
-            if (hex[master_key_encr[i] >> 4] != line[i*2] || hex[master_key_encr[i] & 0x0f] != line[(i*2)+1]) {
+            if (hex[master_key_encr[i] >> 4] != line[i * 2] || hex[master_key_encr[i] & 0x0f] != line[(i * 2) + 1]) {
                 master_key.resize(master_key.capacity(), 0);
                 cleanse(&master_key[0], master_key.size());
                 master_key.clear();
@@ -55,45 +54,6 @@ bool verify_pass(std::string master_key)
     file.close();
     return true;
 }
-
-/*
-void launch()
-{
-    KeepPass pass;
-    std::string user_input = "";
-
-    printf("--------------------------------\n");
-    printf("\tWelcome to KeepPass\t\n");
-    printf("--------------------------------\n");
-
-    unsigned char* master_key = verify_pass();
-    print_menu();
-    while (true) {
-        printf("> ");
-        std::cin >> user_input;
-        switch (stoi_with_check(user_input)) {
-        case 1:
-            pass.add_pass(master_key);
-            break;
-        case 2:
-            pass.remove_pass(master_key);
-            break;
-        case 3:
-            pass.print_pass(master_key);
-            break;
-        case 4:
-            pass.reset_pass();
-            exit(0);
-        case 5:
-            exit(0);
-        default:
-            printf("[!] Invalid input.\n");
-        }
-        print_menu();
-    }
-    printf("Exiting...\n");
-}
-*/
 
 bool keepPassMenu::OnInit()
 {
@@ -117,10 +77,7 @@ keepPassFrame::keepPassFrame(const wxString& title, const wxPoint& pos, const wx
             exit(0);
     }
 
-    wxFlexGridSizer* menu_sizer;
-    menu_sizer = new wxFlexGridSizer(0, 2, 0, 0);
-    menu_sizer->SetFlexibleDirection(wxBOTH);
-    menu_sizer->SetNonFlexibleGrowMode(wxFLEX_GROWMODE_SPECIFIED);
+    wxBoxSizer* menu_sizer = new wxBoxSizer(wxHORIZONTAL);
 
     auto menuFile = new wxMenu();
     auto menuItemFileQuit = menuFile->Append(wxID_EXIT);
@@ -136,41 +93,60 @@ keepPassFrame::keepPassFrame(const wxString& title, const wxPoint& pos, const wx
     del_pass = new wxButton(this, BUTTON_DEL, _T("Remove Password"), wxDefaultPosition, wxDefaultSize, 0);
     menu_sizer->Add(add_pass, 0, wxALL, 5);
     menu_sizer->Add(del_pass, 0, wxALL, 5);
-    
+
     wxBoxSizer* box_sizer = new wxBoxSizer(wxHORIZONTAL);
+
+    wxListBox* pass_list = new wxListBox(this, wxID_ANY, wxDefaultPosition);
+    wxListBox* pass_selection = new wxListBox(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0, nullptr, wxLB_SORT);
+
 
     pass_list->Bind(wxEVT_LISTBOX_DCLICK, [&](wxCommandEvent& event) {
         pass_selection->Append(pass_list->GetStringSelection());
-        pass_selection->SetSelection(0);
-        pass_list->Delete(pass_list->GetSelection());
-    });
+    pass_selection->SetSelection(0);
+    pass_list->Delete(pass_list->GetSelection());
+        });
 
     pass_selection->Bind(wxEVT_LISTBOX_DCLICK, [&](wxCommandEvent& event) {
         pass_list->Append(pass_selection->GetStringSelection());
-        pass_list->SetSelection(0);
-        pass_selection->Delete(pass_selection->GetSelection());
-    });
+    pass_list->SetSelection(0);
+    pass_selection->Delete(pass_selection->GetSelection());
+        });
 
-    box_sizer->Add(pass_list, wxSizerFlags(1).Expand().Border(wxALL, 20));
-    box_sizer->Add(pass_selection, wxSizerFlags(1).Expand().Border(wxALL, 20));
+    box_sizer->Add(pass_list, wxSizerFlags(1).Proportion(1).Expand().Border(wxALL, 20));
+    box_sizer->Add(pass_selection, wxSizerFlags(1).Proportion(2).Expand().Border(wxALL, 20));
 
-    for (auto item : {"draw", "cut", "paste", "delete", "open", "close", "remove", "edit", "find", "increment", "decrement", "write", "read", "post", "build", "make", "release", "create", "choose", "erase"})
-        pass_list->Append(item);
-    pass_list->SetSelection(0);  
 
     main_menu->Append(menuFile, "&File");
     main_menu->Append(menuEdit, "&Edit");
     main_menu->Append(menuHelp, "&Help");
-    
-    this->SetSizer(menu_sizer);
-    this->Layout();
+
+    wxBoxSizer* top_sizer = new wxBoxSizer(wxVERTICAL);
+    top_sizer->Add(menu_sizer, 0, wxEXPAND);
+    top_sizer->Add(box_sizer, 1, wxEXPAND);
+
+    this->SetSizer(top_sizer);
     this->SetMenuBar(main_menu);
     this->Connect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(keepPassFrame::OnClose));
+    this->Layout();
 }
 
 void keepPassFrame::OnPassword(wxCommandEvent& event)
 {
-    std::ofstream pass("pass.txt");
+    wxTextEntryDialog* pass_input = new wxTextEntryDialog(this, "Enter password to add.", "keepPass", wxEmptyString, wxOK | wxTE_PASSWORD);
+    wxTextEntryDialog* site_input = new wxTextEntryDialog(this, "Enter name of site to add.", "keepPass", wxEmptyString, wxOK);
+
+    if (pass_input->ShowModal() == wxID_OK && site_input->ShowModal() == wxID_OK) {
+        wxString password = pass_input->GetValue();
+        wxString site = site_input->GetValue();
+        
+
+        pass_input->Destroy();
+        site_input->Destroy();
+    }
+    else {
+        pass_input->Destroy();
+        site_input->Destroy();
+    }
 }
 
 void keepPassFrame::OnEnterKey(wxCommandEvent& event)

@@ -44,12 +44,9 @@ private:
     void OnExit(wxCommandEvent& event);
     void OnAbout(wxCommandEvent& event);
     wxMenuBar* main_menu = new wxMenuBar();
-    
-    wxPanel* panel = new wxPanel(this, wxID_ANY);
-    wxListBox* pass_list = new wxListBox(panel, wxID_ANY, wxDefaultPosition);
-    wxListBox* pass_selection = new wxListBox(panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0, nullptr, wxLB_SORT);
 
-    unsigned char* master_key_encr;
+    wxListBox* pass_list;
+    wxListBox* pass_selection;
     wxDECLARE_EVENT_TABLE();
 };
 
