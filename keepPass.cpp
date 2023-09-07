@@ -53,7 +53,7 @@ void keepPassFrame::verify_pass(unsigned char* master_key)
 keepPassFrame::keepPassFrame(const wxString& title, const wxPoint& pos, const wxSize& size)
     : wxFrame(NULL, wxID_ANY, title, pos, size)
 {
-    // mloc vs virtualalloc
+    // TODO: mloc vs virtualalloc for protection
     verify_pass(master_key);
 
     wxBoxSizer* menu_sizer = new wxBoxSizer(wxHORIZONTAL);
@@ -127,10 +127,28 @@ void keepPassFrame::on_password(wxCommandEvent& event)
     wxTextEntryDialog* site_input = new wxTextEntryDialog(this, "Enter name of site to add.", "keepPass", wxEmptyString, wxOK);
 
     if (pass_input->ShowModal() == wxID_OK && site_input->ShowModal() == wxID_OK) {
-        wxString password = pass_input->GetValue();
-        wxString site = site_input->GetValue();
-        
+        std::string password = pass_input->GetValue().ToStdString();
+        std::string site_name = site_input->GetValue().ToStdString();
+        std::ofstream pass_file("pass.txt", std::ios::app);
+        const char hex[17] = "0123456789ABCDEF";
+        pass_format site;
+        pass_format pass;
 
+        pass.iv = reinterpret_cast<unsigned char*>(const_cast<char*>(generate_salt(DEFAULT_LEN).c_str()));
+        site.iv = reinterpret_cast<unsigned char*>(const_cast<char*>(generate_salt(DEFAULT_LEN).c_str()));
+        
+        /*pass.len = aes_encrypt(reinterpret_cast<unsigned char*>(const_cast<char*>(password.c_str())), password.size(), master_key, AES_256, AES_CBC, pass.iv, &pass.cipher);
+        site.len = aes_encrypt(reinterpret_cast<unsigned char*>(const_cast<char*>(site_name.c_str())), site_name.size(), master_key, AES_256, AES_CBC, site.iv, &site.cipher);
+       
+        for (int i = 0; i < pass.len; i++) {
+            pass_file << hex[pass.cipher[i] >> 4] << hex[pass.cipher[i] & 0x0f];
+        }
+        pass_file << pass.iv << pass.len << std::endl;
+
+        for (int i = 0; i < site.len; i++) {
+            pass_file << hex[site.cipher[i] >> 4] << hex[site.cipher[i] & 0x0f];
+        }
+        pass_file << site.iv << site.len << std::endl;*/
         pass_input->Destroy();
         site_input->Destroy();
     }

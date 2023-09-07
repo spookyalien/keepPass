@@ -35,7 +35,6 @@ public:
     wxButton* add_pass;
     wxButton* del_pass;
 private:
-
     void on_password(wxCommandEvent& event);
     void on_enter(wxCommandEvent& event);
     void on_close(wxCloseEvent& event);
@@ -48,6 +47,7 @@ private:
     unsigned char* master_key = NULL;
     wxListBox* pass_list;
     wxListBox* pass_selection;
+
     wxDECLARE_EVENT_TABLE();
 };
 
@@ -67,6 +67,11 @@ enum
 };
 
 
+typedef struct pass_format {
+    unsigned char* iv;
+    unsigned char* cipher;
+    int len;
+} pass_format;
 
 
 wxBEGIN_EVENT_TABLE(keepPassFrame, wxFrame)
