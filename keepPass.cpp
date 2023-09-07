@@ -1,8 +1,24 @@
 #include "PassClass.h"
 
-bool verify_pass(std::string master_key)
+bool keepPassMenu::OnInit()
 {
-    unsigned char* master_key_encr = NULL;
+    wxDisplay disp;
+    wxRect disp_rect = disp.GetClientArea();
+    keepPassFrame* frame = new keepPassFrame("keepPass", wxPoint((disp_rect.GetWidth() - WINDOW_X) / 2, (disp_rect.GetHeight() - WINDOW_Y) / 2), wxSize(WINDOW_X, WINDOW_Y));
+    frame->Show(true);
+    return true;
+}
+
+void keepPassFrame::verify_pass(unsigned char* master_key)
+{
+    wxTextEntryDialog* pass_input = new wxTextEntryDialog(this, "Enter master password.", "keepPass", wxEmptyString, wxOK | wxTE_PASSWORD);
+    pass_input->CenterOnScreen();
+    pass_input->Bind(wxEVT_TEXT_ENTER, &keepPassFrame::on_enter, this, wxID_ANY);
+    int result = pass_input->ShowModal();
+
+    if (result != wxID_OK)
+        exit(0);
+    std::string pass = pass_input->GetValue().ToStdString();
     std::string salt;
     int key_len;
     int salt_len = 16;
@@ -14,17 +30,12 @@ bool verify_pass(std::string master_key)
     // Master hash not created yet add as normal
     if (file.peek() == std::ifstream::traits_type::eof()) {
         salt = generate_salt(salt_len);
-        key_len = PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(master_key.c_str())), master_key.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), salt_len, round_count, DK_LEN, &master_key_encr);
+        key_len = PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(pass.c_str())), pass.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), salt_len, round_count, DK_LEN, &master_key);
         std::ofstream file("key.asc");
         file << salt << std::endl;
         file << round_count << std::endl;
         file << salt_len << std::endl;
-
-        for (int i = 0; i < key_len; i++) {
-            file << hex[master_key_encr[i] >> 4] << hex[master_key_encr[i] & 0x0f];
-        }
-        file << std::endl;
-    }
+    } 
     else {
         std::string line;
         std::getline(file, line);
@@ -35,47 +46,15 @@ bool verify_pass(std::string master_key)
         salt_len = stoi_with_check(line);
         std::getline(file, line);
 
-        key_len = PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(master_key.c_str())), master_key.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), salt_len, round_count, DK_LEN, &master_key_encr);
-
-        for (int i = 0; i < key_len; i++) {
-            if (hex[master_key_encr[i] >> 4] != line[i * 2] || hex[master_key_encr[i] & 0x0f] != line[(i * 2) + 1]) {
-                master_key.resize(master_key.capacity(), 0);
-                cleanse(&master_key[0], master_key.size());
-                master_key.clear();
-                file.close();
-                return false;
-            }
-        }
+        key_len = PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(pass.c_str())), pass.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), salt_len, round_count, DK_LEN, &master_key);
     }
-
-    master_key.resize(master_key.capacity(), 0);
-    cleanse(&master_key[0], master_key.size());
-    master_key.clear();
-    file.close();
-    return true;
-}
-
-bool keepPassMenu::OnInit()
-{
-    wxDisplay disp;
-    wxRect disp_rect = disp.GetClientArea();
-    keepPassFrame* frame = new keepPassFrame("keepPass", wxPoint((disp_rect.GetWidth() - WINDOW_X) / 2, (disp_rect.GetHeight() - WINDOW_Y) / 2), wxSize(WINDOW_X, WINDOW_Y));
-    frame->Show(true);
-    return true;
 }
 
 keepPassFrame::keepPassFrame(const wxString& title, const wxPoint& pos, const wxSize& size)
     : wxFrame(NULL, wxID_ANY, title, pos, size)
 {
-    wxTextEntryDialog* pass_input = new wxTextEntryDialog(this, "Enter master password.", "keepPass", wxEmptyString, wxOK | wxTE_PASSWORD);
-    pass_input->CenterOnScreen();
-    pass_input->Bind(wxEVT_TEXT_ENTER, &keepPassFrame::OnEnterKey, this, wxID_ANY);
-    int result = pass_input->ShowModal();
-
-    if (result == wxID_OK) {
-        if (!verify_pass(pass_input->GetValue().ToStdString()))
-            exit(0);
-    }
+    // mloc vs virtualalloc
+    verify_pass(master_key);
 
     wxBoxSizer* menu_sizer = new wxBoxSizer(wxHORIZONTAL);
 
@@ -89,8 +68,14 @@ keepPassFrame::keepPassFrame(const wxString& title, const wxPoint& pos, const wx
     menuHelp->Append(wxID_ABOUT);
 
 
+    unlock_pass = new wxButton(this, BUTTON_UNLOCK, _T("Unlock All"), wxDefaultPosition, wxDefaultSize, 0);
     add_pass = new wxButton(this, BUTTON_ADD, _T("Add Password"), wxDefaultPosition, wxDefaultSize, 0);
     del_pass = new wxButton(this, BUTTON_DEL, _T("Remove Password"), wxDefaultPosition, wxDefaultSize, 0);
+
+    unlock_pass->SetBackgroundColour(wxColour(0, 255, 0));
+    unlock_pass->SetForegroundColour(wxColour(0, 0, 0));
+
+    menu_sizer->Add(unlock_pass, 0, wxALL, 5);
     menu_sizer->Add(add_pass, 0, wxALL, 5);
     menu_sizer->Add(del_pass, 0, wxALL, 5);
 
@@ -126,11 +111,17 @@ keepPassFrame::keepPassFrame(const wxString& title, const wxPoint& pos, const wx
 
     this->SetSizer(top_sizer);
     this->SetMenuBar(main_menu);
-    this->Connect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(keepPassFrame::OnClose));
+    this->Connect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(keepPassFrame::on_close));
     this->Layout();
 }
 
-void keepPassFrame::OnPassword(wxCommandEvent& event)
+
+void keepPassFrame::unlock_all(wxCommandEvent& event)
+{
+    return;
+}
+
+void keepPassFrame::on_password(wxCommandEvent& event)
 {
     wxTextEntryDialog* pass_input = new wxTextEntryDialog(this, "Enter password to add.", "keepPass", wxEmptyString, wxOK | wxTE_PASSWORD);
     wxTextEntryDialog* site_input = new wxTextEntryDialog(this, "Enter name of site to add.", "keepPass", wxEmptyString, wxOK);
@@ -149,25 +140,25 @@ void keepPassFrame::OnPassword(wxCommandEvent& event)
     }
 }
 
-void keepPassFrame::OnEnterKey(wxCommandEvent& event)
+void keepPassFrame::on_enter(wxCommandEvent& event)
 {
     wxTextCtrl* passwordEntry = dynamic_cast<wxTextCtrl*>(event.GetEventObject());
     wxString input = passwordEntry->GetValue();
     exit(0);
 }
 
-void keepPassFrame::OnExit(wxCommandEvent& event)
+void keepPassFrame::on_exit(wxCommandEvent& event)
 {
     Close(true);
 }
 
-void keepPassFrame::OnAbout(wxCommandEvent& event)
+void keepPassFrame::on_about(wxCommandEvent& event)
 {
     wxMessageBox("This is a password manager that aims to keep passwords safe and accessible using AES256 and PBKDF2.",
         "About keepPass", wxOK | wxICON_INFORMATION);
 }
 
-void keepPassFrame::OnClose(wxCloseEvent& event)
+void keepPassFrame::on_close(wxCloseEvent& event)
 {
     Destroy();
     wxGetApp().ExitMainLoop();

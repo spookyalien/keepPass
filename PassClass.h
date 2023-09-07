@@ -20,9 +20,6 @@
 #define WINDOW_X 950
 #define WINDOW_Y 540
 
-#define ADD_PASS 1
-#define DEL_PASS 2
-
 
 class keepPassMenu : public wxApp
 {
@@ -34,17 +31,21 @@ class keepPassFrame : public wxFrame
 {
 public:
     keepPassFrame(const wxString& title, const wxPoint& pos, const wxSize& size);
+    wxButton* unlock_pass;
     wxButton* add_pass;
     wxButton* del_pass;
 private:
 
-    void OnPassword(wxCommandEvent& event);
-    void OnEnterKey(wxCommandEvent& event);
-    void OnClose(wxCloseEvent& event);
-    void OnExit(wxCommandEvent& event);
-    void OnAbout(wxCommandEvent& event);
+    void on_password(wxCommandEvent& event);
+    void on_enter(wxCommandEvent& event);
+    void on_close(wxCloseEvent& event);
+    void on_exit(wxCommandEvent& event);
+    void on_about(wxCommandEvent& event);
+    void unlock_all(wxCommandEvent& event);
+    void verify_pass(unsigned char* master_key);
     wxMenuBar* main_menu = new wxMenuBar();
 
+    unsigned char* master_key = NULL;
     wxListBox* pass_list;
     wxListBox* pass_selection;
     wxDECLARE_EVENT_TABLE();
@@ -52,25 +53,28 @@ private:
 
 enum
 {
+    UNLOCK_PASS = 1,
+    ADD_PASS = 2,
+    DEL_PASS = 3
+};
+
+enum
+{
     ID_OPTIONS = 99,
+    BUTTON_UNLOCK = wxID_HIGHEST + UNLOCK_PASS,
     BUTTON_ADD = wxID_HIGHEST + ADD_PASS,
     BUTTON_DEL = wxID_HIGHEST + DEL_PASS
 };
 
-struct structure
-{
-    std::string word;
-    unsigned char* iv;
-    unsigned char* cipher;
-    int encr_len;
-};
+
 
 
 wxBEGIN_EVENT_TABLE(keepPassFrame, wxFrame)
-EVT_MENU(wxID_EXIT, keepPassFrame::OnExit)
-EVT_MENU(wxID_ABOUT, keepPassFrame::OnAbout)
-EVT_BUTTON(BUTTON_ADD, keepPassFrame::OnPassword)
-EVT_BUTTON(BUTTON_DEL, keepPassFrame::OnExit)
+EVT_MENU(wxID_EXIT, keepPassFrame::on_exit)
+EVT_MENU(wxID_ABOUT, keepPassFrame::on_about)
+EVT_BUTTON(BUTTON_ADD, keepPassFrame::on_password)
+EVT_BUTTON(BUTTON_DEL, keepPassFrame::on_exit)
+EVT_BUTTON(BUTTON_UNLOCK, keepPassFrame::unlock_all)
 wxEND_EVENT_TABLE()
 wxIMPLEMENT_APP(keepPassMenu);
 
