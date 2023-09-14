@@ -19,6 +19,7 @@
 #define DEFAULT_SALT_LEN 16
 #define WINDOW_X 950
 #define WINDOW_Y 540
+#define DELIMITER '|'
 
 
 class keepPassMenu : public wxApp
@@ -41,12 +42,13 @@ private:
     void on_exit(wxCommandEvent& event);
     void on_about(wxCommandEvent& event);
     void unlock_all(wxCommandEvent& event);
-    void verify_pass(unsigned char* master_key);
+    int verify_pass(unsigned char** master_key);
     wxMenuBar* main_menu = new wxMenuBar();
 
-    unsigned char* master_key = NULL;
     wxListBox* pass_list;
     wxListBox* pass_selection;
+    unsigned char* master_key = NULL;
+    int key_length = 0;
 
     wxDECLARE_EVENT_TABLE();
 };

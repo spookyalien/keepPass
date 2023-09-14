@@ -1,5 +1,49 @@
 #include "PassClass.h"
 
+#include <stdio.h>
+
+#ifdef _WIN32 
+#include <Windows.h>
+
+void* allocate_memory(size_t size) {
+    return VirtualAlloc(NULL, size, MEM_COMMIT, PAGE_READWRITE);
+}
+
+void free_memory(void* memory, size_t size) {
+    VirtualFree(memory, 0, MEM_RELEASE);
+}
+
+#else // Code for Unix-like platforms
+#include <sys/mman.h>
+#include <errno.h>
+
+void* allocate_memory(size_t size) {
+    void* memory = malloc(size);
+    
+    if (memory == NULL) {
+        perror("malloc");
+        return NULL;
+    }
+    
+    if (mlock(memory, size) != 0) {
+        perror("mlock");
+        free(memory);
+        return NULL;
+    }
+    
+    return memory;
+}
+
+void free_memory(void* memory, size_t size) {
+    if (munlock(memory, size) != 0) {
+        perror("munlock");
+    }
+    
+    free(memory);
+}
+
+#endif
+
 bool keepPassMenu::OnInit()
 {
     wxDisplay disp;
@@ -9,7 +53,7 @@ bool keepPassMenu::OnInit()
     return true;
 }
 
-void keepPassFrame::verify_pass(unsigned char* master_key)
+int keepPassFrame::verify_pass(unsigned char** master_key)
 {
     wxTextEntryDialog* pass_input = new wxTextEntryDialog(this, "Enter master password.", "keepPass", wxEmptyString, wxOK | wxTE_PASSWORD);
     pass_input->CenterOnScreen();
@@ -30,7 +74,7 @@ void keepPassFrame::verify_pass(unsigned char* master_key)
     // Master hash not created yet add as normal
     if (file.peek() == std::ifstream::traits_type::eof()) {
         salt = generate_salt(salt_len);
-        key_len = PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(pass.c_str())), pass.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), salt_len, round_count, DK_LEN, &master_key);
+        key_len = PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(pass.c_str())), pass.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), salt_len, round_count, DK_LEN, master_key);
         std::ofstream file("key.asc");
         file << salt << std::endl;
         file << round_count << std::endl;
@@ -46,18 +90,19 @@ void keepPassFrame::verify_pass(unsigned char* master_key)
         salt_len = stoi_with_check(line);
         std::getline(file, line);
 
-        key_len = PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(pass.c_str())), pass.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), salt_len, round_count, DK_LEN, &master_key);
+        key_len = PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(pass.c_str())), pass.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), salt_len, round_count, DK_LEN, master_key);
     }
+
+    return key_len;
 }
 
 keepPassFrame::keepPassFrame(const wxString& title, const wxPoint& pos, const wxSize& size)
     : wxFrame(NULL, wxID_ANY, title, pos, size)
 {
     // TODO: mloc vs virtualalloc for protection
-    verify_pass(master_key);
-
+    master_key = (unsigned char*) allocate_memory(DK_LEN);
+    key_length = verify_pass(&master_key);
     wxBoxSizer* menu_sizer = new wxBoxSizer(wxHORIZONTAL);
-
     auto menuFile = new wxMenu();
     auto menuItemFileQuit = menuFile->Append(wxID_EXIT);
     menuItemFileQuit->SetBitmap(wxArtProvider::GetBitmap(wxART_QUIT, wxART_MENU));
@@ -66,7 +111,6 @@ keepPassFrame::keepPassFrame(const wxString& title, const wxPoint& pos, const wx
 
     auto menuHelp = new wxMenu();
     menuHelp->Append(wxID_ABOUT);
-
 
     unlock_pass = new wxButton(this, BUTTON_UNLOCK, _T("Unlock All"), wxDefaultPosition, wxDefaultSize, 0);
     add_pass = new wxButton(this, BUTTON_ADD, _T("Add Password"), wxDefaultPosition, wxDefaultSize, 0);
@@ -113,19 +157,57 @@ keepPassFrame::keepPassFrame(const wxString& title, const wxPoint& pos, const wx
     this->SetMenuBar(main_menu);
     this->Connect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(keepPassFrame::on_close));
     this->Layout();
+
 }
 
 
 void keepPassFrame::unlock_all(wxCommandEvent& event)
 {
-    return;
+    std::ifstream pass_file("pass.txt", std::ios::app);
+    
+    if (pass_file.peek() == std::ifstream::traits_type::eof()) {
+        wxMessageBox( wxT("No passwords present."), wxT("Error"), wxICON_INFORMATION);
+    }
+    else {
+        if (pass_file.is_open()) {
+            std::string line;
+            int len_length = 2;
+            while (std::getline(pass_file, line)) {
+                std::vector<std::string> site_pass = split(line, DELIMITER);
+
+                for (auto entry : site_pass) {
+                    std::string num = entry.substr(entry.size() - len_length, len_length);
+                    int len = std::stoi(num);
+                    std::string iv_str = entry.substr(entry.size() - len_length - DEFAULT_LEN, DEFAULT_LEN);
+                    std::string encr_pass = entry.substr(0, entry.size() - len_length - DEFAULT_LEN);
+                    auto ciph_chrs = encr_pass.c_str();
+                    auto iv_chrs = iv_str.c_str();
+
+                    unsigned char* iv = reinterpret_cast<unsigned char*>(const_cast<char*>(iv_chrs));
+                    unsigned char *cipher = (unsigned char*)malloc(len);
+                    hex_str(encr_pass, cipher, len);
+//                     const char* txt = "asidlhgfyiuyguaysdgdcvetwee";
+// const char* k = "abcdefghijklmnopabcdefghijklmnop";
+// const char* ivv = "zyxwvutsrqponmlk";
+// unsigned char* key = (unsigned char*)k;
+// unsigned char* text = (unsigned char*)txt;
+// //unsigned char* iv = (unsigned char*)ivv;
+// unsigned char* cipher = NULL;
+             unsigned char* dec = NULL;
+//int decr_len = aes_decrypt(cipher, len, master_key, AES_256, AES_CBC, iv, &dec);
+//std::cout << dec << std::endl;
+                }
+            }
+        }
+    }
 }
+
 
 void keepPassFrame::on_password(wxCommandEvent& event)
 {
-    wxTextEntryDialog* pass_input = new wxTextEntryDialog(this, "Enter password to add.", "keepPass", wxEmptyString, wxOK | wxTE_PASSWORD);
     wxTextEntryDialog* site_input = new wxTextEntryDialog(this, "Enter name of site to add.", "keepPass", wxEmptyString, wxOK);
-
+    wxTextEntryDialog* pass_input = new wxTextEntryDialog(this, "Enter password to add.", "keepPass", wxEmptyString, wxOK | wxTE_PASSWORD);
+    
     if (pass_input->ShowModal() == wxID_OK && site_input->ShowModal() == wxID_OK) {
         std::string password = pass_input->GetValue().ToStdString();
         std::string site_name = site_input->GetValue().ToStdString();
@@ -134,21 +216,25 @@ void keepPassFrame::on_password(wxCommandEvent& event)
         pass_format site;
         pass_format pass;
 
-        pass.iv = reinterpret_cast<unsigned char*>(const_cast<char*>(generate_salt(DEFAULT_LEN).c_str()));
-        site.iv = reinterpret_cast<unsigned char*>(const_cast<char*>(generate_salt(DEFAULT_LEN).c_str()));
-        
-        /*pass.len = aes_encrypt(reinterpret_cast<unsigned char*>(const_cast<char*>(password.c_str())), password.size(), master_key, AES_256, AES_CBC, pass.iv, &pass.cipher);
+        std::string site_iv = generate_salt(DEFAULT_LEN);
+        std::string pass_iv = generate_salt(DEFAULT_LEN);
+
+        pass.iv = reinterpret_cast<unsigned char*>(const_cast<char*>(pass_iv.c_str()));
+        site.iv = reinterpret_cast<unsigned char*>(const_cast<char*>(site_iv.c_str()));
+        pass.len = aes_encrypt(reinterpret_cast<unsigned char*>(const_cast<char*>(password.c_str())), password.size(), master_key, AES_256, AES_CBC, pass.iv, &pass.cipher);
         site.len = aes_encrypt(reinterpret_cast<unsigned char*>(const_cast<char*>(site_name.c_str())), site_name.size(), master_key, AES_256, AES_CBC, site.iv, &site.cipher);
        
         for (int i = 0; i < pass.len; i++) {
             pass_file << hex[pass.cipher[i] >> 4] << hex[pass.cipher[i] & 0x0f];
         }
-        pass_file << pass.iv << pass.len << std::endl;
+        pass_file << pass_iv << pass.len;
 
+        pass_file << DELIMITER;
         for (int i = 0; i < site.len; i++) {
             pass_file << hex[site.cipher[i] >> 4] << hex[site.cipher[i] & 0x0f];
         }
-        pass_file << site.iv << site.len << std::endl;*/
+        pass_file << site_iv << site.len << std::endl;
+
         pass_input->Destroy();
         site_input->Destroy();
     }
@@ -178,6 +264,7 @@ void keepPassFrame::on_about(wxCommandEvent& event)
 
 void keepPassFrame::on_close(wxCloseEvent& event)
 {
+    free_memory(master_key, DK_LEN);
     Destroy();
     wxGetApp().ExitMainLoop();
 }
