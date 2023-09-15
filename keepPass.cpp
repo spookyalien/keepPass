@@ -186,6 +186,17 @@ void keepPassFrame::unlock_all(wxCommandEvent& event)
                     unsigned char* iv = reinterpret_cast<unsigned char*>(const_cast<char*>(iv_chrs));
                     unsigned char *cipher = (unsigned char*)malloc(len);
                     hex_str(encr_pass, cipher, len);
+
+                    for (int i = 0; i < strlen((char*)cipher); i++) {
+                        printf("%d ", cipher[i]);
+                    }
+                    printf("\n");
+                    std::cout << len << std::endl;
+                    std::cout << iv_str << std::endl;
+                    for (int i = 0; i < key_length; i++) {
+                        printf("%02X ", master_key[i]);
+                    }
+                    printf("\n");
 //                     const char* txt = "asidlhgfyiuyguaysdgdcvetwee";
 // const char* k = "abcdefghijklmnopabcdefghijklmnop";
 // const char* ivv = "zyxwvutsrqponmlk";
@@ -221,8 +232,27 @@ void keepPassFrame::on_password(wxCommandEvent& event)
 
         pass.iv = reinterpret_cast<unsigned char*>(const_cast<char*>(pass_iv.c_str()));
         site.iv = reinterpret_cast<unsigned char*>(const_cast<char*>(site_iv.c_str()));
-        pass.len = aes_encrypt(reinterpret_cast<unsigned char*>(const_cast<char*>(password.c_str())), password.size(), master_key, AES_256, AES_CBC, pass.iv, &pass.cipher);
-        site.len = aes_encrypt(reinterpret_cast<unsigned char*>(const_cast<char*>(site_name.c_str())), site_name.size(), master_key, AES_256, AES_CBC, site.iv, &site.cipher);
+        unsigned char* pass1 = reinterpret_cast<unsigned char*>(const_cast<char*>(password.c_str()));
+        unsigned char* site1 = reinterpret_cast<unsigned char*>(const_cast<char*>(site_name.c_str()));
+
+        for (int i = 0; i < strlen((char*)pass1); i++) {
+            printf("%d ", pass1[i]);
+        }
+        printf("\n");
+        std::cout << password.size() << std::endl;
+        std::cout << pass_iv << std::endl;
+        std::cout << site_iv << std::endl;
+        for (int i = 0; i < key_length; i++) {
+            printf("%02X ", master_key[i]);
+        }
+        printf("\n");
+        for (int i = 0; i < strlen((char*)site1); i++) {
+            printf("%d ", site1[i]);
+        }
+        printf("\n");
+
+        pass.len = aes_encrypt(pass1, password.size(), master_key, AES_256, AES_CBC, pass.iv, &pass.cipher);
+        site.len = aes_encrypt(site1, site_name.size(), master_key, AES_256, AES_CBC, site.iv, &site.cipher);
        
         for (int i = 0; i < pass.len; i++) {
             pass_file << hex[pass.cipher[i] >> 4] << hex[pass.cipher[i] & 0x0f];
