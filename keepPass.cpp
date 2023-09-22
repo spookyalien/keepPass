@@ -123,13 +123,15 @@ keepPassFrame::keepPassFrame(const wxString& title, const wxPoint& pos, const wx
 
     wxBoxSizer* box_sizer = new wxBoxSizer(wxHORIZONTAL);
 
+    site_list = new wxListBox(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0, nullptr);
+    user_list = new wxListBox(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0, nullptr);
     pass_list = new wxListBox(this, wxID_ANY, wxDefaultPosition);
-    pass_selection = new wxListBox(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0, nullptr, wxLB_SORT);
 
 
 
-    box_sizer->Add(pass_list, wxSizerFlags(1).Proportion(1).Expand().Border(wxALL, 20));
-    box_sizer->Add(pass_selection, wxSizerFlags(1).Proportion(2).Expand().Border(wxALL, 20));
+    box_sizer->Add(site_list, wxSizerFlags(1).Proportion(2).Expand().Border(wxALL, 20));
+    box_sizer->Add(user_list, wxSizerFlags(1).Proportion(2).Expand().Border(wxALL, 20));
+    box_sizer->Add(pass_list, wxSizerFlags(1).Proportion(2).Expand().Border(wxALL, 20));
 
 
     main_menu->Append(menuFile, "&File");
@@ -160,7 +162,7 @@ void keepPassFrame::unlock_all(wxCommandEvent& event)
             int len_length = 2;
             while (std::getline(pass_file, line)) {
                 std::vector<std::string> site_pass = split(line, DELIMITER);
-
+                int count = 0;
                 for (auto entry : site_pass) {
                     unsigned char* dec = NULL;
                     std::string num = entry.substr(entry.size() - len_length, len_length);
@@ -175,9 +177,18 @@ void keepPassFrame::unlock_all(wxCommandEvent& event)
                     hex_str(encr_pass, cipher, len);
 
                     int decr_len = aes_decrypt(cipher, len, master_key, AES_256, AES_CBC, iv, &dec);
-                    pass_list->Append(dec);
-                    free(iv);
-                    free(cipher);
+                    switch (count) {
+                        case 0:
+                            site_list->Append(dec);
+                            break;
+                        case 1:
+                            user_list->Append(dec);
+                            break;
+                        case 2:
+                            pass_list->Append(dec);
+                            break;
+                    }
+                    count += 1;
                 }
             }
         }
@@ -188,39 +199,53 @@ void keepPassFrame::unlock_all(wxCommandEvent& event)
 void keepPassFrame::on_password(wxCommandEvent& event)
 {
     wxTextEntryDialog* site_input = new wxTextEntryDialog(this, "Enter name of site to add.", "keepPass", wxEmptyString, wxOK);
+    wxTextEntryDialog* name_input = new wxTextEntryDialog(this, "Enter Username.", "keepPass", wxEmptyString, wxOK);
     wxTextEntryDialog* pass_input = new wxTextEntryDialog(this, "Enter password to add.", "keepPass", wxEmptyString, wxOK | wxTE_PASSWORD);
     
     if (pass_input->ShowModal() == wxID_OK && site_input->ShowModal() == wxID_OK) {
         std::string password = pass_input->GetValue().ToStdString();
         std::string site_name = site_input->GetValue().ToStdString();
+        std::string username = name_input->GetValue().ToStdString();
         std::ofstream pass_file("pass.txt", std::ios::app);
         const char hex[17] = "0123456789ABCDEF";
         pass_format site;
         pass_format pass;
+        pass_format user;
 
         std::string site_iv = generate_salt(DEFAULT_LEN);
         std::string pass_iv = generate_salt(DEFAULT_LEN);
+        std::string user_iv = generate_salt(DEFAULT_LEN);
 
         pass.iv = reinterpret_cast<unsigned char*>(const_cast<char*>(pass_iv.c_str()));
         site.iv = reinterpret_cast<unsigned char*>(const_cast<char*>(site_iv.c_str()));
-        unsigned char* pass1 = reinterpret_cast<unsigned char*>(const_cast<char*>(password.c_str()));
-        unsigned char* site1 = reinterpret_cast<unsigned char*>(const_cast<char*>(site_name.c_str()));
-        pass.len = aes_encrypt(pass1, password.size(), master_key, AES_256, AES_CBC, pass.iv, &pass.cipher);
-        site.len = aes_encrypt(site1, site_name.size(), master_key, AES_256, AES_CBC, site.iv, &site.cipher);
+        user.iv = reinterpret_cast<unsigned char*>(const_cast<char*>(user_iv.c_str()));
+        unsigned char* pass_uchar = reinterpret_cast<unsigned char*>(const_cast<char*>(password.c_str()));
+        unsigned char* site_uchar = reinterpret_cast<unsigned char*>(const_cast<char*>(site_name.c_str()));
+        unsigned char* user_uchar = reinterpret_cast<unsigned char*>(const_cast<char*>(username.c_str()));
+        pass.len = aes_encrypt(pass_uchar, password.size(), master_key, AES_256, AES_CBC, pass.iv, &pass.cipher);
+        site.len = aes_encrypt(site_uchar, site_name.size(), master_key, AES_256, AES_CBC, site.iv, &site.cipher);
+        user.len = aes_encrypt(user_uchar, site_name.size(), master_key, AES_256, AES_CBC, user.iv, &user.cipher);
 
+        for (int i = 0; i < site.len; i++) {
+            pass_file << hex[site.cipher[i] >> 4] << hex[site.cipher[i] & 0x0f];
+        }
+        pass_file << site_iv << site.len;
+
+        pass_file << DELIMITER;
+
+        for (int i = 0; i < user.len; i++) {
+            pass_file << hex[user.cipher[i] >> 4] << hex[user.cipher[i] & 0x0f];
+        }
+        pass_file << user_iv << user.len;
+        
+        pass_file << DELIMITER;
+        
         for (int i = 0; i < pass.len; i++) {
             pass_file << hex[pass.cipher[i] >> 4] << hex[pass.cipher[i] & 0x0f];
         }
         pass_file << pass_iv << pass.len; 
 
-        pass_file << DELIMITER;
-        for (int i = 0; i < site.len; i++) {
-            pass_file << hex[site.cipher[i] >> 4] << hex[site.cipher[i] & 0x0f];
-        }
-        pass_file << site_iv << site.len << std::endl;
 
-        free(pass1);
-        free(site1);
         pass_input->Destroy();
         site_input->Destroy();
     }
