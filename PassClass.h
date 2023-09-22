@@ -37,7 +37,6 @@ public:
     wxButton* del_pass;
 private:
     void on_password(wxCommandEvent& event);
-    void on_enter(wxCommandEvent& event);
     void on_close(wxCloseEvent& event);
     void on_exit(wxCommandEvent& event);
     void on_about(wxCommandEvent& event);

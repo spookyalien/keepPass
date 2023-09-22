@@ -57,7 +57,6 @@ int keepPassFrame::verify_pass(unsigned char** master_key)
 {
     wxTextEntryDialog* pass_input = new wxTextEntryDialog(this, "Enter master password.", "keepPass", wxEmptyString, wxOK | wxTE_PASSWORD);
     pass_input->CenterOnScreen();
-    pass_input->Bind(wxEVT_TEXT_ENTER, &keepPassFrame::on_enter, this, wxID_ANY);
     int result = pass_input->ShowModal();
 
     if (result != wxID_OK)
@@ -99,7 +98,6 @@ int keepPassFrame::verify_pass(unsigned char** master_key)
 keepPassFrame::keepPassFrame(const wxString& title, const wxPoint& pos, const wxSize& size)
     : wxFrame(NULL, wxID_ANY, title, pos, size)
 {
-    // TODO: mloc vs virtualalloc for protection
     master_key = (unsigned char*) allocate_memory(DK_LEN);
     key_length = verify_pass(&master_key);
     wxBoxSizer* menu_sizer = new wxBoxSizer(wxHORIZONTAL);
@@ -125,21 +123,10 @@ keepPassFrame::keepPassFrame(const wxString& title, const wxPoint& pos, const wx
 
     wxBoxSizer* box_sizer = new wxBoxSizer(wxHORIZONTAL);
 
-    wxListBox* pass_list = new wxListBox(this, wxID_ANY, wxDefaultPosition);
-    wxListBox* pass_selection = new wxListBox(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0, nullptr, wxLB_SORT);
+    pass_list = new wxListBox(this, wxID_ANY, wxDefaultPosition);
+    pass_selection = new wxListBox(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0, nullptr, wxLB_SORT);
 
 
-    pass_list->Bind(wxEVT_LISTBOX_DCLICK, [&](wxCommandEvent& event) {
-        pass_selection->Append(pass_list->GetStringSelection());
-    pass_selection->SetSelection(0);
-    pass_list->Delete(pass_list->GetSelection());
-        });
-
-    pass_selection->Bind(wxEVT_LISTBOX_DCLICK, [&](wxCommandEvent& event) {
-        pass_list->Append(pass_selection->GetStringSelection());
-    pass_list->SetSelection(0);
-    pass_selection->Delete(pass_selection->GetSelection());
-        });
 
     box_sizer->Add(pass_list, wxSizerFlags(1).Proportion(1).Expand().Border(wxALL, 20));
     box_sizer->Add(pass_selection, wxSizerFlags(1).Proportion(2).Expand().Border(wxALL, 20));
@@ -147,7 +134,6 @@ keepPassFrame::keepPassFrame(const wxString& title, const wxPoint& pos, const wx
 
     main_menu->Append(menuFile, "&File");
     main_menu->Append(menuEdit, "&Edit");
-    main_menu->Append(menuHelp, "&Help");
 
     wxBoxSizer* top_sizer = new wxBoxSizer(wxVERTICAL);
     top_sizer->Add(menu_sizer, 0, wxEXPAND);
@@ -176,6 +162,7 @@ void keepPassFrame::unlock_all(wxCommandEvent& event)
                 std::vector<std::string> site_pass = split(line, DELIMITER);
 
                 for (auto entry : site_pass) {
+                    unsigned char* dec = NULL;
                     std::string num = entry.substr(entry.size() - len_length, len_length);
                     int len = std::stoi(num);
                     std::string iv_str = entry.substr(entry.size() - len_length - DEFAULT_LEN, DEFAULT_LEN);
@@ -187,26 +174,10 @@ void keepPassFrame::unlock_all(wxCommandEvent& event)
                     unsigned char *cipher = (unsigned char*)malloc(len);
                     hex_str(encr_pass, cipher, len);
 
-                    for (int i = 0; i < strlen((char*)cipher); i++) {
-                        printf("%d ", cipher[i]);
-                    }
-                    printf("\n");
-                    std::cout << len << std::endl;
-                    std::cout << iv_str << std::endl;
-                    for (int i = 0; i < key_length; i++) {
-                        printf("%02X ", master_key[i]);
-                    }
-                    printf("\n");
-//                     const char* txt = "asidlhgfyiuyguaysdgdcvetwee";
-// const char* k = "abcdefghijklmnopabcdefghijklmnop";
-// const char* ivv = "zyxwvutsrqponmlk";
-// unsigned char* key = (unsigned char*)k;
-// unsigned char* text = (unsigned char*)txt;
-// //unsigned char* iv = (unsigned char*)ivv;
-// unsigned char* cipher = NULL;
-             unsigned char* dec = NULL;
-//int decr_len = aes_decrypt(cipher, len, master_key, AES_256, AES_CBC, iv, &dec);
-//std::cout << dec << std::endl;
+                    int decr_len = aes_decrypt(cipher, len, master_key, AES_256, AES_CBC, iv, &dec);
+                    pass_list->Append(dec);
+                    free(iv);
+                    free(cipher);
                 }
             }
         }
@@ -234,30 +205,13 @@ void keepPassFrame::on_password(wxCommandEvent& event)
         site.iv = reinterpret_cast<unsigned char*>(const_cast<char*>(site_iv.c_str()));
         unsigned char* pass1 = reinterpret_cast<unsigned char*>(const_cast<char*>(password.c_str()));
         unsigned char* site1 = reinterpret_cast<unsigned char*>(const_cast<char*>(site_name.c_str()));
-
-        for (int i = 0; i < strlen((char*)pass1); i++) {
-            printf("%d ", pass1[i]);
-        }
-        printf("\n");
-        std::cout << password.size() << std::endl;
-        std::cout << pass_iv << std::endl;
-        std::cout << site_iv << std::endl;
-        for (int i = 0; i < key_length; i++) {
-            printf("%02X ", master_key[i]);
-        }
-        printf("\n");
-        for (int i = 0; i < strlen((char*)site1); i++) {
-            printf("%d ", site1[i]);
-        }
-        printf("\n");
-
         pass.len = aes_encrypt(pass1, password.size(), master_key, AES_256, AES_CBC, pass.iv, &pass.cipher);
         site.len = aes_encrypt(site1, site_name.size(), master_key, AES_256, AES_CBC, site.iv, &site.cipher);
-       
+
         for (int i = 0; i < pass.len; i++) {
             pass_file << hex[pass.cipher[i] >> 4] << hex[pass.cipher[i] & 0x0f];
         }
-        pass_file << pass_iv << pass.len;
+        pass_file << pass_iv << pass.len; 
 
         pass_file << DELIMITER;
         for (int i = 0; i < site.len; i++) {
@@ -265,6 +219,8 @@ void keepPassFrame::on_password(wxCommandEvent& event)
         }
         pass_file << site_iv << site.len << std::endl;
 
+        free(pass1);
+        free(site1);
         pass_input->Destroy();
         site_input->Destroy();
     }
@@ -272,13 +228,6 @@ void keepPassFrame::on_password(wxCommandEvent& event)
         pass_input->Destroy();
         site_input->Destroy();
     }
-}
-
-void keepPassFrame::on_enter(wxCommandEvent& event)
-{
-    wxTextCtrl* passwordEntry = dynamic_cast<wxTextCtrl*>(event.GetEventObject());
-    wxString input = passwordEntry->GetValue();
-    exit(0);
 }
 
 void keepPassFrame::on_exit(wxCommandEvent& event)
