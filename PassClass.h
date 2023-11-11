@@ -1,11 +1,10 @@
 #ifndef PASSCLASS_H
 #define PASSCLASS_H
 
-#include <fstream>
-#include <sstream>
 #include "Utility/cpputility.h"
 #include "PBKDF/pbkdf2.h"
 #include "AES/aes.h"
+#include <unordered_set>
 
 #include <wx/wxprec.h>
 #include <wx/display.h>
@@ -20,6 +19,8 @@
 #define WINDOW_X 950
 #define WINDOW_Y 540
 #define DELIMITER '|'
+#define PASS_FILE "pass.txt"
+#define convert_uchar(strng) reinterpret_cast<unsigned char*>(const_cast<char*>(strng.c_str()))
 
 
 class keepPassMenu : public wxApp
@@ -37,6 +38,7 @@ public:
     wxButton* del_pass;
 private:
     void on_password(wxCommandEvent& event);
+    void on_delete(wxCommandEvent& event);
     void on_close(wxCloseEvent& event);
     void on_exit(wxCommandEvent& event);
     void on_about(wxCommandEvent& event);
@@ -45,7 +47,9 @@ private:
     wxMenuBar* main_menu = new wxMenuBar();
 
     wxListBox* pass_list;
-    wxListBox* pass_selection;
+    wxListBox* user_list;
+    wxListBox* site_list;
+    std::unordered_set <std::string> added;
     unsigned char* master_key = NULL;
     int key_length = 0;
 
@@ -79,7 +83,7 @@ wxBEGIN_EVENT_TABLE(keepPassFrame, wxFrame)
 EVT_MENU(wxID_EXIT, keepPassFrame::on_exit)
 EVT_MENU(wxID_ABOUT, keepPassFrame::on_about)
 EVT_BUTTON(BUTTON_ADD, keepPassFrame::on_password)
-EVT_BUTTON(BUTTON_DEL, keepPassFrame::on_exit)
+EVT_BUTTON(BUTTON_DEL, keepPassFrame::on_delete)
 EVT_BUTTON(BUTTON_UNLOCK, keepPassFrame::unlock_all)
 wxEND_EVENT_TABLE()
 wxIMPLEMENT_APP(keepPassMenu);

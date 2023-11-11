@@ -5,7 +5,7 @@
 	@param key: chosen password
 	@param msg: message to be encrypted
 
-	returns: SHA1_SUCCESS (0) if successful, and -1 otherwise
+	returns: SHA1 hash size
 */
 int HMAC(unsigned char* key, int key_len, unsigned char* msg, int msg_len, unsigned char msg_digest_final[SHA1_HASH_SIZE])
 {

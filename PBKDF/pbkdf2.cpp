@@ -50,6 +50,6 @@ int PBKDF2(unsigned char* pass, int pass_len, unsigned char* salt, int salt_len,
 		cursor += h_len;
 	}
 	
-	return dk_len;
+	return num_blocks;
 }
 

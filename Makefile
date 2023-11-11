@@ -27,4 +27,4 @@ pbkdf2.o: PBKDF/pbkdf2.cpp
 	
 
 clean:
-	rm *.o key.asc
+	rm *.o key.asc pass.txt

@@ -78,6 +78,9 @@ int keepPassFrame::verify_pass(unsigned char** master_key)
         file << salt << std::endl;
         file << round_count << std::endl;
         file << salt_len << std::endl;
+        pass.resize(pass.capacity(), 0);
+        cleanse(&pass[0], pass.size());
+        pass.clear();
     } 
     else {
         std::string line;
@@ -90,6 +93,10 @@ int keepPassFrame::verify_pass(unsigned char** master_key)
         std::getline(file, line);
 
         key_len = PBKDF2(reinterpret_cast<unsigned char*>(const_cast<char*>(pass.c_str())), pass.length(), reinterpret_cast<unsigned char*>(const_cast<char*>(salt.c_str())), salt_len, round_count, DK_LEN, master_key);
+        
+        pass.resize(pass.capacity(), 0);
+        cleanse(&pass[0], pass.size());
+        pass.clear();
     }
 
     return key_len;
@@ -162,37 +169,95 @@ void keepPassFrame::unlock_all(wxCommandEvent& event)
             int len_length = 2;
             while (std::getline(pass_file, line)) {
                 std::vector<std::string> site_pass = split(line, DELIMITER);
-                int count = 0;
-                for (auto entry : site_pass) {
+
+                for (int i = 0; i < site_pass.size(); i++) {
+                    if (added.find(site_pass[i]) == added.end())
+                        added.insert(site_pass[i]);
+                    else
+                        continue;
                     unsigned char* dec = NULL;
-                    std::string num = entry.substr(entry.size() - len_length, len_length);
+                    std::string num = site_pass[i].substr(site_pass[i].size() - len_length, len_length);
                     int len = std::stoi(num);
-                    std::string iv_str = entry.substr(entry.size() - len_length - DEFAULT_LEN, DEFAULT_LEN);
-                    std::string encr_pass = entry.substr(0, entry.size() - len_length - DEFAULT_LEN);
-                    auto ciph_chrs = encr_pass.c_str();
-                    auto iv_chrs = iv_str.c_str();
+                    // DEFAULT_LEN is 16 for iv length TODO: make dynamic
+                    std::string iv_str = site_pass[i].substr(site_pass[i].size() - len_length - DEFAULT_LEN, DEFAULT_LEN);
+                    std::string encr_pass = site_pass[i].substr(0, site_pass[i].size() - len_length - DEFAULT_LEN);
 
-                    unsigned char* iv = reinterpret_cast<unsigned char*>(const_cast<char*>(iv_chrs));
-                    unsigned char *cipher = (unsigned char*)malloc(len);
+                    unsigned char* iv = convert_uchar(iv_str);
+                    unsigned char* cipher = (unsigned char*)malloc(len);
                     hex_str(encr_pass, cipher, len);
+                    int decr_len = aes_decrypt(cipher, len, master_key, AES_256, AES_CBC, iv, &dec); 
+                    std::string decr_pass(reinterpret_cast<char const*>(dec), decr_len);
 
-                    int decr_len = aes_decrypt(cipher, len, master_key, AES_256, AES_CBC, iv, &dec);
-                    switch (count) {
+                    switch(i) {
                         case 0:
-                            site_list->Append(dec);
+                            site_list->Append(decr_pass);
                             break;
                         case 1:
-                            user_list->Append(dec);
+                            user_list->Append(decr_pass);
                             break;
                         case 2:
-                            pass_list->Append(dec);
+                            pass_list->Append(decr_pass);
                             break;
                     }
-                    count += 1;
                 }
+                
             }
         }
     }
+}
+
+void keepPassFrame::on_delete(wxCommandEvent& event)
+{
+    std::ifstream pass_file(PASS_FILE, std::ios::app);
+    if (pass_file.peek() == std::ifstream::traits_type::eof()) {
+        wxMessageBox( wxT("No passwords present."), wxT("Error"), wxICON_INFORMATION);
+        return;
+    }
+    wxTextEntryDialog* site_input = new wxTextEntryDialog(this, "Enter site to delete.", "keepPass", wxEmptyString, wxOK);
+    
+    if (site_input->ShowModal() == wxID_OK) {
+        if (pass_file.is_open()) {
+            std::string site_input_str = site_input->GetValue().ToStdString();
+            unsigned char* del_site = convert_uchar(site_input_str);
+            std::string line = "";
+            int arr_entry = 0;
+            const char hex[17] = "0123456789ABCDEF";
+
+            while (std::getline(pass_file, line)) {
+                unsigned char* user_cipher = NULL;
+                int len_length = 2;
+                std::string site_line = split(line, DELIMITER).front();
+                // use IV on each line to make site AES and compare to encrypted pass segment
+                // FORMAT: [ENCR_PASS][IV][ENCR_LEN] delimited by | for site, username, then password respectively
+                std::string num = site_line.substr(site_line.size() - len_length, len_length);
+                int encr_len = std::stoi(num);
+                // DEFAULT_LEN is 16 for iv length TODO: make dynamic
+                std::string iv_str = site_line.substr(site_line.size() - len_length - DEFAULT_LEN, DEFAULT_LEN);
+                std::string encr_pass = site_line.substr(0, site_line.size() - len_length - DEFAULT_LEN);
+                unsigned char* iv = convert_uchar(iv_str);
+                aes_encrypt(del_site, site_input_str.size(), master_key, AES_256, AES_CBC, iv, &user_cipher);
+                
+                bool flag = false;
+                for (int i = 0; i < encr_len; i++) {
+                    int j = (i * 2);
+                    if ((encr_pass[j] != hex[user_cipher[i] >> 4]) && (encr_pass[j+1] != hex[user_cipher[i] & 0x0f]))
+                        flag = false;
+                    else
+                        flag = true;
+                }
+                if (flag) {
+                    added.erase(site_line);
+                    delete_line(PASS_FILE, site_line);
+                    pass_list->Delete(arr_entry);
+                    user_list->Delete(arr_entry);
+                    site_list->Delete(arr_entry);
+                    break;
+                }
+                arr_entry++;
+            }
+        }
+    }
+
 }
 
 
@@ -202,11 +267,11 @@ void keepPassFrame::on_password(wxCommandEvent& event)
     wxTextEntryDialog* name_input = new wxTextEntryDialog(this, "Enter Username.", "keepPass", wxEmptyString, wxOK);
     wxTextEntryDialog* pass_input = new wxTextEntryDialog(this, "Enter password to add.", "keepPass", wxEmptyString, wxOK | wxTE_PASSWORD);
     
-    if (pass_input->ShowModal() == wxID_OK && site_input->ShowModal() == wxID_OK) {
+    if (site_input->ShowModal() == wxID_OK && name_input->ShowModal() == wxID_OK && pass_input->ShowModal() == wxID_OK) {
         std::string password = pass_input->GetValue().ToStdString();
         std::string site_name = site_input->GetValue().ToStdString();
         std::string username = name_input->GetValue().ToStdString();
-        std::ofstream pass_file("pass.txt", std::ios::app);
+        std::ofstream pass_file(PASS_FILE, std::ios::app);
         const char hex[17] = "0123456789ABCDEF";
         pass_format site;
         pass_format pass;
@@ -216,15 +281,16 @@ void keepPassFrame::on_password(wxCommandEvent& event)
         std::string pass_iv = generate_salt(DEFAULT_LEN);
         std::string user_iv = generate_salt(DEFAULT_LEN);
 
-        pass.iv = reinterpret_cast<unsigned char*>(const_cast<char*>(pass_iv.c_str()));
-        site.iv = reinterpret_cast<unsigned char*>(const_cast<char*>(site_iv.c_str()));
-        user.iv = reinterpret_cast<unsigned char*>(const_cast<char*>(user_iv.c_str()));
-        unsigned char* pass_uchar = reinterpret_cast<unsigned char*>(const_cast<char*>(password.c_str()));
-        unsigned char* site_uchar = reinterpret_cast<unsigned char*>(const_cast<char*>(site_name.c_str()));
-        unsigned char* user_uchar = reinterpret_cast<unsigned char*>(const_cast<char*>(username.c_str()));
+        pass.iv = convert_uchar(pass_iv);
+        site.iv = convert_uchar(site_iv);
+        user.iv = convert_uchar(user_iv);
+        unsigned char* pass_uchar = convert_uchar(password);
+        unsigned char* site_uchar = convert_uchar(site_name);
+        unsigned char* user_uchar = convert_uchar(username);
+
         pass.len = aes_encrypt(pass_uchar, password.size(), master_key, AES_256, AES_CBC, pass.iv, &pass.cipher);
         site.len = aes_encrypt(site_uchar, site_name.size(), master_key, AES_256, AES_CBC, site.iv, &site.cipher);
-        user.len = aes_encrypt(user_uchar, site_name.size(), master_key, AES_256, AES_CBC, user.iv, &user.cipher);
+        user.len = aes_encrypt(user_uchar, username.size(), master_key, AES_256, AES_CBC, user.iv, &user.cipher);
 
         for (int i = 0; i < site.len; i++) {
             pass_file << hex[site.cipher[i] >> 4] << hex[site.cipher[i] & 0x0f];
@@ -244,14 +310,16 @@ void keepPassFrame::on_password(wxCommandEvent& event)
             pass_file << hex[pass.cipher[i] >> 4] << hex[pass.cipher[i] & 0x0f];
         }
         pass_file << pass_iv << pass.len; 
-
+        pass_file << std::endl;
 
         pass_input->Destroy();
         site_input->Destroy();
+        name_input->Destroy();
     }
     else {
         pass_input->Destroy();
         site_input->Destroy();
+        name_input->Destroy();
     }
 }
 

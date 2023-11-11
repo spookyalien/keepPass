@@ -97,6 +97,32 @@ int is_empty_file(FILE *fp)
     return 0;
 }
 
+void delete_line(std::string path, std::string del_line) {
+    std::string line;
+    std::ifstream fin;
+    std::cout << del_line << std::endl;
+    
+    fin.open(path);
+    // contents of path must be copied to a temp file then
+    // renamed back to the path file
+    std::ofstream temp;
+    temp.open("temp.txt");
+
+
+    while (getline(fin, line)) {
+        if (line.substr(0, del_line.size()) != del_line) {
+            temp << line << std::endl;
+        }
+    }
+
+    temp.close();
+    fin.close();
+
+    const char * p = path.c_str();
+    remove(p);
+    rename("temp.txt", p);
+}
+
 std::string generate_salt(int len)
 {
     const std::string charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
