@@ -37,113 +37,61 @@ class keepPassFrame: public wxFrame
 
 enum
 {
-    ID_Hello = 1
-};
-
-wxBEGIN_EVENT_TABLE(keepPassFrame, wxFrame)
-EVT_MENU(ID_Hello,   keepPassFrame::OnHello)
-EVT_MENU(wxID_EXIT,  keepPassFrame::OnExit)
-EVT_MENU(wxID_ABOUT, keepPassFrame::OnAbout)
-wxEND_EVENT_TABLE()
-wxIMPLEMENT_APP(keepPassMenu);
-
-
-class KeepPass
+class PassInput : public wxDialog
 {
-    public:
-        void add_pass(unsigned char* key);
-        void remove_pass(unsigned char* key);
-        void print_pass(unsigned char* key);
-        void reset_pass();
-        const char* pass_txt = "pass.txt";
-    private:
-        struct structure
-        {
-            std::string word;
-            unsigned char* iv;
-            unsigned char* cipher;
-            int encr_len;
-        };
-        void write_pass(structure item, unsigned char* key);
-};
+public:
+    PassInput(wxWindow *parent, wxWindowID id, const wxString &title)
+        : wxDialog(parent, id, title, wxDefaultPosition, wxSize(300, 200))
+    {
+        wxStaticText *siteLabel = new wxStaticText(this, wxID_ANY, "Enter name of site to add:");
+        siteInput = new wxTextCtrl(this, wxID_ANY);
 
+        wxStaticText *nameLabel = new wxStaticText(this, wxID_ANY, "Enter Username:");
+        nameInput = new wxTextCtrl(this, wxID_ANY);
 
-void KeepPass::write_pass(KeepPass::structure item, unsigned char* key)
-{
-    std::ofstream pass_file(pass_txt, std::ios::app);
-    const char hex[17] = "0123456789ABCDEF";
+        wxStaticText *passLabel = new wxStaticText(this, wxID_ANY, "Enter password to add:");
+        passInput = new wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_PASSWORD);
 
-    std::cin >> item.word;
-    std::string iv = generate_salt(DEFAULT_LEN);
-    auto iv_chrs = iv.c_str();
-    item.iv = reinterpret_cast<unsigned char*>(const_cast<char*>(iv_chrs));
+        wxButton *okButton = new wxButton(this, wxID_OK, "OK");
+        wxButton *cancelButton = new wxButton(this, wxID_CANCEL, "Cancel");
 
-    auto pass_chrs = item.word.c_str();
-    unsigned char* tmp = reinterpret_cast<unsigned char*>(const_cast<char*>(pass_chrs));
-    
-    item.encr_len = aes_encrypt(tmp, item.word.size(), key, AES_256, AES_CBC, item.iv, &item.cipher);
-    memset(tmp, 0, item.word.size());
-    item.word.resize(item.word.capacity(), 0);
-    cleanse(&item.word[0], item.word.size());
-    item.word.clear();
+        wxBoxSizer *mainSizer = new wxBoxSizer(wxVERTICAL);
+        wxBoxSizer *buttonSizer = new wxBoxSizer(wxHORIZONTAL);
 
-    for (int i = 0; i < item.encr_len; i++) {
-        pass_file << hex[item.cipher[i] >> 4] << hex[item.cipher[i] & 0x0f];
+        mainSizer->Add(siteLabel, 0, wxALL, 5);
+        mainSizer->Add(siteInput, 0, wxEXPAND | wxALL, 5);
+        mainSizer->Add(nameLabel, 0, wxALL, 5);
+        mainSizer->Add(nameInput, 0, wxEXPAND | wxALL, 5);
+        mainSizer->Add(passLabel, 0, wxALL, 5);
+        mainSizer->Add(passInput, 0, wxEXPAND | wxALL, 5);
+
+        buttonSizer->Add(okButton, 0, wxALL, 5);
+        buttonSizer->Add(cancelButton, 0, wxALL, 5);
+
+        mainSizer->Add(buttonSizer, 0, wxALIGN_CENTER);
+
+        SetSizerAndFit(mainSizer);
+
+        Bind(wxEVT_BUTTON, &PassInput::OnOk, this, wxID_OK);
     }
-    pass_file << item.iv << item.encr_len << std::endl;
-}
 
-void KeepPass::add_pass(unsigned char* key)
-{
-    structure site;
-    structure pass;
- 
-    printf("[+] Enter site for this password to be used: ");
-    write_pass(site, key);
-    printf("[+] Please enter the password to store: ");
-    write_pass(pass, key);
-}
+    wxString GetSite() const { return siteInput->GetValue().ToStdString(); }
+    wxString GetName() const { return nameInput->GetValue().ToStdString(); }
+    wxString GetPassword() const { return passInput->GetValue(); }
 
-void KeepPass::remove_pass(unsigned char* key)
-{
-
-}
-void KeepPass::print_pass(unsigned char* key)
-{
-    std::ifstream pass_file(pass_txt, std::ios::out);
-    std::string line;
-    unsigned char* dec = NULL;
-
-    if (pass_file.is_open()) {
-        while (std::getline(pass_file, line)) {
-            std::string num = line.substr(line.size()-2, 2);
-            int len = std::stoi(num);
-            std::string iv_str = line.substr(line.size()-2-DEFAULT_LEN, DEFAULT_LEN);
-            std::string encr_pass = line.substr(0, line.size()-2-DEFAULT_LEN);
-            auto ciph_chrs = encr_pass.c_str();
-            auto iv_chrs = iv_str.c_str();
-
-            unsigned char* iv = reinterpret_cast<unsigned char*>(const_cast<char*>(iv_chrs));
-            unsigned char* cipher = reinterpret_cast<unsigned char*>(const_cast<char*>(ciph_chrs));
-
-
-            // FIXME: SEGFAULT 
-            int decr_len = aes_decrypt(cipher, line.size()-2-DEFAULT_LEN, key, AES_256, AES_CBC, iv, &dec);
-            std::cout << dec << std::endl;
+private:
+    void OnOk(wxCommandEvent &event)
+    {
+        if (Validate() && TransferDataFromWindow())
+        {
+            EndModal(wxID_OK);
         }
     }
-    else 
-        printf("[+] No active pass file...\n");
 
-    pass_file.close();
-}
+    wxTextCtrl *siteInput;
+    wxTextCtrl *nameInput;
+    wxTextCtrl *passInput;
+};
 
-void KeepPass::reset_pass() 
-{
-    if( remove("key.asc") == 0 && remove("pass.txt") == 0)
-        puts( "File successfully deleted");
-    
-    return;
-}
 
 #endif
