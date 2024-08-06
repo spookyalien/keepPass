@@ -1,5 +1,26 @@
 #include "cpputility.h"
 
+std::vector<std::string> split (const std::string &s, char delim) {
+    std::vector<std::string> result;
+    std::stringstream ss (s);
+    std::string item;
+
+    while (getline (ss, item, delim)) {
+        result.push_back (item);
+    }
+
+    return result;
+}
+
+void hex_str(std::string hex, unsigned char* output, int len)
+{
+    for (int i = 0; i < len*2; i += 2) {
+        std::string hex_pair = hex.substr(i, 2);
+        int intValue = std::stoi(hex_pair , nullptr, 16);
+        unsigned char ucharValue = static_cast<unsigned char>(intValue);
+        output[i / 2] = ucharValue;
+    }
+}
 
 void string2hexString(unsigned char* input, char* output)
 {
@@ -76,6 +97,32 @@ int is_empty_file(FILE *fp)
     return 0;
 }
 
+void delete_line(std::string path, std::string del_line) {
+    std::string line;
+    std::ifstream fin;
+    std::cout << del_line << std::endl;
+    
+    fin.open(path);
+    // contents of path must be copied to a temp file then
+    // renamed back to the path file
+    std::ofstream temp;
+    temp.open("temp.txt");
+
+
+    while (getline(fin, line)) {
+        if (line.substr(0, del_line.size()) != del_line) {
+            temp << line << std::endl;
+        }
+    }
+
+    temp.close();
+    fin.close();
+
+    const char * p = path.c_str();
+    remove(p);
+    rename("temp.txt", p);
+}
+
 std::string generate_salt(int len)
 {
     const std::string charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -94,22 +141,4 @@ std::string generate_salt(int len)
 
 void cleanse(void* ptr, size_t len) {
   memset_func(ptr, 0, len);
-}
-
-void printCharArr(unsigned char* txt)
-{
-    for (int i = 0; ; i++) {
-        if (txt[i] != NULL)
-            printf("%02X ", txt[i]);
-    }
-    printf("\n");
-}
-
-void print_menu()
-{
-    printf("1. Add a password.\n");
-    printf("2. Delete a password.\n");
-    printf("3. Print all passwords.\n");
-    printf("4. Reset master password (Deletes all passwords!).\n");
-    printf("5. Exit.\n");
 }
